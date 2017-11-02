@@ -4,7 +4,7 @@ import scipy.integrate as spi
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-a = 0.0  # black hole angular momentum
+a = 0.5  # black hole angular momentum
 n_rays = 24
 nt = 10000  # time steps (time points - 1)
 
@@ -108,7 +108,7 @@ def deriv(y, zeta):
         _Theta * aasincos / _rho_qua
     dp_phi = 0
 
-    return np.array([dr, dtheta, dphi, p_r, p_theta, p_phi])
+    return np.array([dr, dtheta, dphi, dp_r, dp_theta, dp_phi])
 
 # [ray_0, ... , ray_n-1]
 # [r, theta, phi, p_r, p_theta, p_phi]
@@ -137,7 +137,7 @@ for i in range(n_rays):
 
 rays_0[:, 0:3] = cam_pos.copy()
 
-zeta = np.linspace(0, -10, nt + 1) # Think carefully about this (TODO)
+zeta = np.linspace(0, -25, nt + 1) # Think carefully about this (TODO)
 
 rays = np.zeros((n_rays, nt + 1, 6))
 
