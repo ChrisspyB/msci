@@ -4,8 +4,10 @@ import scipy.integrate as spi
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-a = 0.5  # black hole angular momentum
-n_rays = 24
+SAVE = True
+PLOT = False
+a = 0.999  # black hole angular momentum
+n_rays = 50
 nt = 10000  # time steps (time points - 1)
 
 
@@ -118,8 +120,9 @@ rays_0 = np.zeros((n_rays, 6))
 cam_pos = np.array([10, 0.5 * np.pi, 0])
 
 #  t=0 ray directions in camera's spherical coordinates (aligned to FIDO)
-theta_0 = np.linspace(0, np.pi, n_rays)
-phi_0 = np.linspace(0, 2 * np.pi, n_rays)
+theta_0 = np.linspace(np.pi/2, np.pi/2, n_rays)
+phi_0 = np.linspace(0.7 * np.pi, 1.3 * np.pi, n_rays)
+
 # unit vectors in tangent space to FIDO, up is along e_theta
 n_0 = np.zeros((n_rays, 3))  # (r,theta,phi)
 n_0[:, 0] = -np.sin(theta_0) * np.cos(phi_0)
@@ -145,17 +148,20 @@ rays = np.zeros((n_rays, nt + 1, 6))
 for i in range(n_rays):
     rays[i] = spi.odeint(deriv, rays_0[i], zeta)
 
-# plot
 rays_x = np.sqrt(rays[:,:, 0]**2 + a * a) * \
     np.sin(rays[:,:, 1]) * np.cos(rays[:,:, 2])
 rays_y = np.sqrt(rays[:,:, 0]**2 + a * a) * \
     np.sin(rays[:,:, 1]) * np.sin(rays[:,:, 2])
 rays_z = rays[:,:, 0] * np.cos(rays[:,:, 1])
 
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
+if SAVE:
+    np.save("renderdata",np.dstack((rays_x,rays_y,rays_z)))
 
-for i in range(n_rays):
-    ax.plot(rays_x[i,:], rays_y[i,:], zs=rays_z[i,:])
+if PLOT:
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
 
-plt.show()
+    for i in range(n_rays):
+        ax.plot(rays_x[i,:], rays_y[i,:], zs=rays_z[i,:])
+
+    plt.show()
