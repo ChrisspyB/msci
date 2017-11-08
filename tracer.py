@@ -6,10 +6,21 @@ from mpl_toolkits.mplot3d import Axes3D
 
 SAVE = True
 PLOT = False
-a = 0.999  # black hole angular momentum
+
 n_rays = 50
 nt = 10000  # time steps (time points - 1)
 
+a = 0.999  # black hole angular momentum
+r_1 = 2 + 2*math.cos(2*math.acos(-a)/3)
+r_2 = 2 + 2*math.cos(2*math.acos(a)/3)
+
+def b_0(r):
+    return -(r*r*r - 3*r*r + a*a*r + a*a)/(a*(r-1))
+
+# write this as a function of b in the range [r_1, r_2]
+# we should be able to invert b_0(r) in this range
+def q_0(r):
+    return -r*r*r*(r*r*r - 6*r*r + 9*r - 4*a*a)/(a*a*(r-1)*(r-1))
 
 def rho(y):
     r, theta, phi, p_r, p_theta, p_phi = y
@@ -41,7 +52,7 @@ def omega(y):
     return 2 * a * r / (sig * sig)
 
 
-def omega_bar(y):
+def pomega(y):
     r, theta, phi, p_r, p_theta, p_phi = y
     return Sigma(y) * math.sin(theta) / rho(y)
 
@@ -52,7 +63,7 @@ def alpha(y):
 
 def E_f(y, n_phi):
     r, theta, phi, p_r, p_theta, p_phi = y
-    return 1 / (alpha(y) + omega(y) * omega_bar(y) * n_phi)
+    return 1 / (alpha(y) + omega(y) * pomega(y) * n_phi)
 
 
 def q(y):
@@ -119,15 +130,18 @@ rays_0 = np.zeros((n_rays, 6))
 # camera position (r, theta, phi)
 cam_pos = np.array([10, 0.5 * np.pi, 0])
 
-#  t=0 ray directions in camera's spherical coordinates (aligned to FIDO)
+#  t=0 (negative) ray directions in camera's spherical coordinates (aligned to FIDO)
 theta_0 = np.linspace(np.pi/2, np.pi/2, n_rays)
 phi_0 = np.linspace(0.7 * np.pi, 1.3 * np.pi, n_rays)
 
 # unit vectors in tangent space to FIDO, up is along e_theta
 n_0 = np.zeros((n_rays, 3))  # (r,theta,phi)
-n_0[:, 0] = -np.sin(theta_0) * np.cos(phi_0)
-n_0[:, 2] = -np.sin(theta_0) * np.sin(phi_0)
-n_0[:, 1] = -np.cos(theta_0)
+n_0[:, 0] = -np.sin(theta_0) * np.cos(phi_0) # e_x ~ e_r
+n_0[:, 2] = -np.sin(theta_0) * np.sin(phi_0) # e_y ~ e_phi
+n_0[:, 1] = -np.cos(theta_0) # e_z ~ e_theta
+
+# note the minus signs above; rays are integrated backwards in time
+# and we would like to specify theta_0, phi_0 in the direction of integration of the rays
 
 # initialise ray momenta and positions
 # Note: E_f doesnt depend on momentum
@@ -136,11 +150,11 @@ y_0 = np.concatenate((cam_pos, np.zeros(3)))
 for i in range(n_rays):
     rays_0[i, 3] = n_0[i, 0] * E_f(y_0, n_0[i, 2]) * rho(y_0) / math.sqrt(Delta(y_0))
     rays_0[i, 4] = n_0[i, 1] * E_f(y_0, n_0[i, 2]) * rho(y_0)
-    rays_0[i, 5] = n_0[i, 2] * E_f(y_0, n_0[i, 2]) * omega_bar(y_0)  # = b (conserved)
+    rays_0[i, 5] = n_0[i, 2] * E_f(y_0, n_0[i, 2]) * pomega(y_0)  # = b (conserved)
 
 rays_0[:, 0:3] = cam_pos.copy()
 
-zeta = np.linspace(0, -25, nt + 1) # Think carefully about this (TODO)
+zeta = np.linspace(0, -25, nt + 1)
 
 rays = np.zeros((n_rays, nt + 1, 6))
 
@@ -155,7 +169,7 @@ rays_y = np.sqrt(rays[:,:, 0]**2 + a * a) * \
 rays_z = rays[:,:, 0] * np.cos(rays[:,:, 1])
 
 if SAVE:
-    np.save("renderdata",np.dstack((rays_x,rays_y,rays_z)))
+    np.save("renderdata", np.dstack((rays_x, rays_y, rays_z)))
 
 if PLOT:
     fig = plt.figure()
