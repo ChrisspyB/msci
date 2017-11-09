@@ -4,13 +4,13 @@ import scipy.integrate as spi
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-SAVE = True
-PLOT = False
+SAVE = False
+PLOT = True
 
-n_rays = 50
-nt = 10000  # time steps (time points - 1)
+n_rays = 100
+nt = 100000  # time steps (time points - 1)
 
-a = 0.5  # black hole angular momentum
+a = 0.0  # black hole angular momentum
 r_1 = 2 + 2 * math.cos(2 * math.acos(-a) / 3)
 r_2 = 2 + 2 * math.cos(2 * math.acos(a) / 3)
 
@@ -151,19 +151,21 @@ def deriv(y, zeta):
 # [r, theta, phi, p_r, p_theta, p_phi]
 rays_0 = np.zeros((n_rays, 6))
 
-# camera positions (r, theta, phi)
-cam_pos = np.array([10, 0.5 * np.pi, 0])
+# multiple camera positions (r, theta, phi)
+cam_pos = np.zeros((n_rays, 3))
+cam_y = np.linspace(6, 5000, n_rays)  # impact parameters
+cam_x = np.ones(n_rays) * 100000
+cam_pos[:, 0] = np.sqrt(cam_x * cam_x + cam_y * cam_y)
+cam_pos[:, 1] = math.pi / 2
+cam_pos[:, 2] = np.arctan2(cam_y, cam_x)
 
-# t=0 (negative) ray directions in camera's spherical coordinates (aligned
-# to FIDO)
-theta_0 = np.ones(n_rays) * math.pi / 2
-phi_0 = np.linspace(0.7 * np.pi, 1.3 * np.pi, n_rays)
-
-# unit vectors in tangent space to FIDO, up is along e_theta
-n_0 = np.zeros((n_rays, 3))  # (r,theta,phi)
-n_0[:, 0] = -np.sin(theta_0) * np.cos(phi_0)  # e_x ~ e_r
-n_0[:, 2] = -np.sin(theta_0) * np.sin(phi_0)  # e_y ~ e_phi
-n_0[:, 1] = -np.cos(theta_0)  # e_z ~ e_theta
+# initial (negative) ray directions in camera's cartesian coords
+# unit vectors in tangent space to FIDO
+n_0 = np.zeros((n_rays, 3))  # (e_r, e_theta, e_phi)
+# e_x
+n_0[:, 0] = np.cos(cam_pos[:, 2])
+n_0[:, 1] = 0
+n_0[:, 2] = -np.sin(cam_pos[:, 2])
 
 # note the minus signs above; rays are integrated backwards in time
 # and we would like to specify theta_0, phi_0 in the direction of
@@ -171,9 +173,8 @@ n_0[:, 1] = -np.cos(theta_0)  # e_z ~ e_theta
 
 # initialise ray momenta and positions
 # Note: E_f doesnt depend on momentum
-y_0 = np.concatenate((cam_pos, np.zeros(3)))
-
 for i in range(n_rays):
+    y_0 = np.concatenate((cam_pos[i,:], np.zeros(3)))
     rays_0[i, 3] = n_0[i, 0] * \
         E_f(y_0, n_0[i, 2]) * rho(y_0) / math.sqrt(Delta(y_0))
     rays_0[i, 4] = n_0[i, 1] * E_f(y_0, n_0[i, 2]) * rho(y_0)
@@ -182,28 +183,35 @@ for i in range(n_rays):
 
 rays_0[:, 0:3] = cam_pos.copy()
 
-zeta = np.linspace(0, -25, nt + 1)
+zeta = np.linspace(0, -200000, nt + 1)
 
 rays = np.zeros((n_rays, nt + 1, 6))
 
+deflec = np.zeros(n_rays)
 # integrate momenta and positions
 for i in range(n_rays):
     rays[i] = spi.odeint(deriv, rays_0[i], zeta)
 
-rays_x = np.sqrt(rays[:, :, 0]**2 + a * a) * \
-    np.sin(rays[:, :, 1]) * np.cos(rays[:, :, 2])
-rays_y = np.sqrt(rays[:, :, 0]**2 + a * a) * \
-    np.sin(rays[:, :, 1]) * np.sin(rays[:, :, 2])
-rays_z = rays[:, :, 0] * np.cos(rays[:, :, 1])
+rays_x = np.sqrt(rays[:,:, 0]**2 + a * a) * \
+    np.sin(rays[:,:, 1]) * np.cos(rays[:,:, 2])
+rays_y = np.sqrt(rays[:,:, 0]**2 + a * a) * \
+    np.sin(rays[:,:, 1]) * np.sin(rays[:,:, 2])
+rays_z = rays[:,:, 0] * np.cos(rays[:,:, 1])
+
+dx = rays_x[:, -1] - rays_x[:, -2]
+dy = rays_y[:, -1] - rays_y[:, -2]
+deflec = np.arctan2(-dy, -dx)
 
 if SAVE:
     np.save("renderdata", np.dstack((rays_x, rays_y, rays_z)))
 
 if PLOT:
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-
+    plt.figure()
     for i in range(n_rays):
-        ax.plot(rays_x[i, :], rays_y[i, :], zs=rays_z[i, :])
+        plt.plot(rays_x[i,:], rays_y[i,:], 'b')
+
+    plt.figure()
+    plt.plot(cam_y, deflec)
+    plt.plot(cam_y, 4/cam_y)
 
     plt.show()
