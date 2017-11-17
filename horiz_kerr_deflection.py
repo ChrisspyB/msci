@@ -82,10 +82,11 @@ if PLOT:
     plt.figure()
     for i in range(n_rays):
         plt.plot(rays_x[i,:], rays_y[i,:], 'b')
-
+    plt.title("Ray Trajectories")
+    plt.xlabel("X")
+    plt.ylabel("Y")
     plt.figure()
-    plt.plot(cam_y, np.abs(deflec))
-    
+    plt.plot(cam_y, np.abs(deflec), label="Traced Rays")
     b = np.abs(cam_y)
     s = np.sign(-cam_y) # + = prograde, - = retrograde
     # kerr deflection in equatorial plane
@@ -93,6 +94,10 @@ if PLOT:
              4/b \
              + (15*math.pi/4 - 12*s*a) * 1/(b*b) \
              + (128/3 - 10*math.pi*s*a + 4*a*a) * 1/(b*b*b)
-             ,'--')
+             ,'--', label="Theory (Cubic Order)")
+    plt.title("Deflection of rays with different starting Y")
+    plt.xlabel("Initial Y")
+    plt.ylabel("Deflection Angle")
+    plt.legend()
     plt.grid()
     plt.show()

@@ -80,9 +80,16 @@ if PLOT:
     plt.figure()
     for i in range(n_rays):
         plt.plot(rays_x[i,:], rays_y[i,:], 'b')
+    plt.title("Ray Trajectories")
+    plt.xlabel("X")
+    plt.ylabel("Y")
 
     plt.figure()
-    plt.plot(cam_y, deflec)
-    plt.plot(cam_y, 4/cam_y)
-
+    plt.plot(cam_y, deflec, label="Traced Rays")
+    plt.plot(cam_y, 4/cam_y, label="Theory")
+    plt.title("Deflection of rays with different starting Y")
+    plt.xlabel("Initial Y")
+    plt.ylabel("Deflection Angle")
+    plt.legend()
+    plt.grid()
     plt.show()
