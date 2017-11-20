@@ -4,16 +4,16 @@ import scipy.integrate as spi
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-from deriv_funcs import deriv, E_f, rho, Delta, pomega
+from deriv_funcs_light import deriv_light, E_f, rho, Delta, pomega
 
-SAVE = True
-PLOT = False
+SAVE = 0
+PLOT = 1
 
 n_rays = 50
 
 nt = 1000
 
-a = 0.5  # black hole angular momentum
+a = 0.999  # black hole angular momentum
 
 # [ray_0, ... , ray_n-1]
 # [r, theta, phi, p_r, p_theta, p_phi]
@@ -56,7 +56,7 @@ rays = np.zeros((n_rays, nt + 1, 6))
 
 # integrate momenta and positions
 for i in range(n_rays):
-    rays[i] = spi.odeint(deriv, rays_0[i], zeta, (a,))
+    rays[i] = spi.odeint(deriv_light, rays_0[i], zeta, (a,))
 
 rays_x = np.sqrt(rays[:, :, 0]**2 + a * a) * \
     np.sin(rays[:, :, 1]) * np.cos(rays[:, :, 2])
@@ -70,7 +70,7 @@ if SAVE:
 if PLOT:
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-
+    ax.set_zlim(-1,1)
     for i in range(n_rays):
         ax.plot(rays_x[i, :], rays_y[i, :], zs=rays_z[i, :])
 

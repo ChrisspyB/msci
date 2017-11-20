@@ -99,13 +99,14 @@ def R(y, a):
 
 
 def Theta(y, a):
+    # TODO: Check if this is ptheta**2 only
     r, theta, phi, p_r, p_theta, p_phi = y
     cost = math.cos(theta)
     sint = math.sin(theta)
     return q(y, a) - cost * cost * (p_phi * p_phi / (sint * sint) - a * a)
 
 
-def deriv(y, zeta, a):
+def deriv_light(y, zeta, a):
     r, theta, phi, p_r, p_theta, p_phi = y
     _delta = Delta(y, a)
     _rho_sqr = rho_sqr(y, a)
