@@ -126,5 +126,9 @@ def deriv_light(y, zeta, a):
     dp_r = p_r * p_r * (_delta * r / _rho_qua - (r - 1) / _rho_sqr) + p_theta * p_theta * r / _rho_qua + ((2 * r * _P - (r - 1) * ((_b - a) * (_b - a) + _q)) * _delta * _rho_sqr -_R * ((r - 1) * _rho_sqr + _delta * r)) / (_delta * _delta * _rho_qua) - r * _Theta / _rho_qua
     dp_theta = -aasincos * _delta * p_r * p_r / _rho_qua - aasincos * p_theta * p_theta / _rho_qua + (_R * aasincos - _delta * _rho_sqr * (aasincos - _b * _b * (cot + cot * cot * cot))) / (_delta * _rho_qua) + _Theta * aasincos / _rho_qua
     dp_phi = 0
+    
+    # reached event horizon
+    if (r - 2) < 1e-6:
+        return np.zeros(6)
 
     return np.array([dr, dtheta, dphi, dp_r, dp_theta, dp_phi])

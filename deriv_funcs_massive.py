@@ -40,39 +40,34 @@ def alpha(y, a):
     return rho(y, a) * math.sqrt(Delta(y, a)) / Sigma(y, a)
 
 
-def E_f(y, n_phi, a):
-    t, r, theta, phi = y
-    return 1 / (alpha(y, a) + omega(y, a) * pomega(y, a) * n_phi)
-
-
-def q(y, a, musq, b, p_theta):
+def q(y, p_theta, a, musq, E, b):
     t, r, theta, phi = y
     cost = math.cos(theta)
     sint = math.sin(theta)
-    return p_theta * p_theta + cost * cost * (b * b / (sint * sint) + a * a * (musq-1))
+    return p_theta * p_theta + cost * cost * (b * b / (sint * sint) + a * a * (musq-E))
 
 
-def P(y, a, b):
+def P(y, a, E, b):
     # == P
     t, r, theta, phi = y
-    return r * r + a * a - a * b
+    return E*(r * r + a * a) - a * b
 
 
-def R(y, a, musq, b, q):
+def R(y, a, musq, E, b, q):
     t, r, theta, phi = y
-    p = P(y, a, b)
-    p_minus_a = (p - a)
-    return p * p - Delta(y, a) * (p_minus_a * p_minus_a + musq*r*r + q)
+    p = P(y, a, E, b)
+    b_minus_aE = (b - a*E)
+    return p * p - Delta(y, a) * (musq*r*r + b_minus_aE * b_minus_aE + q)
 
 
-def Theta(y, a, musq, b, q):
+def Theta(y, a, musq, E, b, q):
     # TODO: Check if this is ptheta**2 only
     t, r, theta, phi = y
     cost = math.cos(theta)
     sint = math.sin(theta)
-    return q - cost * cost * (b * b / (sint * sint) + a * a * (musq-1))
+    return q - cost * cost * (b * b / (sint * sint) + a * a * (musq-E))
 
-def deriv_massive(y,zeta,a,b,q,mu):
+def deriv_massive(y, zeta, a, mu, E, b, q):
     musq = mu*mu
     
     # note different y
@@ -80,16 +75,21 @@ def deriv_massive(y,zeta,a,b,q,mu):
 
     _delta = Delta(y, a)
     _rho_sqr = rho_sqr(y, a)
-    _P = P(y, a, musq, b)
-    _R = R(y, a, musq, b, q)
-    _Theta = Theta(y, a, musq,b,q)
+    _P = P(y, a, E, b)
+    _R = R(y, a, musq, E, b, q)
+    _Theta = Theta(y, a, musq, E, b, q)
     _Lz = b
 
     sinsq = math.sin(theta) * math.sin(theta)
 
     dtheta = math.sqrt(_Theta)
     dr = math.sqrt(_R)
-    dphi = -(a - _Lz / sinsq) + a / _delta * _P
-    dt = -a * (a * sinsq - _Lz) + (r * r + a * a)/_delta * _P
+    dphi = -(a * E - _Lz / sinsq) + _P * a / _delta
+    dt = -a * (a * E * sinsq - _Lz) + _P * (r * r + a * a)/_delta
+    
+    # reached event horizon
+    if (r - 2) < 1e-6:
+        return np.zeros(4)
+        
 
     return np.array([dt,dr,dtheta,dphi])/_rho_sqr
