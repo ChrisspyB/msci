@@ -12,13 +12,15 @@ n_orbits = 12
 
 nt = 1000
 
-a = 0.95  # black hole angular momentum
+T = 25000 # units of affine parameter?
+
+a = 0.0000001  # black hole angular momentum
 
 # [ray_0, ... , ray_n-1]
 # [r, theta, phi, p_r, p_theta, p_phi]
 orbits_0 = np.zeros((n_orbits, 4))
 
-start_pos = np.array([10, 0.5 * np.pi, 0])
+start_pos = np.array([100, 0.5 * np.pi, 0])
 # note the minus signs above; rays are integrated backwards in time
 # and we would like to specify theta_0, phi_0 in the direction of
 # integration of the rays
@@ -26,17 +28,17 @@ start_pos = np.array([10, 0.5 * np.pi, 0])
 y_0 = np.concatenate((np.zeros(1), start_pos))
 orbits_0[:] = y_0
 
-zeta = np.linspace(0, 25, nt + 1)
+zeta = np.linspace(0, T, nt + 1)
 
 orbits = np.zeros((n_orbits, nt + 1, 4))
 
 # integrate momenta and positions
 for i in range(n_orbits):
     mu = 1
-    p_theta = 0
+    p_theta = 0.0000001
     
     # here units of length are half the schwarzschild radius (also note c = 1)
-    b = 1 # p_phi
+    b = 0.4 # p_phi
     E = 1 # energy at infinity
     
     _q = q(y_0, p_theta, a, mu*mu, E, b)

@@ -44,7 +44,7 @@ def q(y, p_theta, a, musq, E, b):
     t, r, theta, phi = y
     cost = math.cos(theta)
     sint = math.sin(theta)
-    return p_theta * p_theta + cost * cost * (b * b / (sint * sint) + a * a * (musq-E))
+    return p_theta * p_theta + cost * cost * (b * b / (sint * sint) + a * a * (musq-E*E))
 
 
 def P(y, a, E, b):
@@ -61,11 +61,10 @@ def R(y, a, musq, E, b, q):
 
 
 def Theta(y, a, musq, E, b, q):
-    # TODO: Check if this is ptheta**2 only
     t, r, theta, phi = y
     cost = math.cos(theta)
     sint = math.sin(theta)
-    return q - cost * cost * (b * b / (sint * sint) + a * a * (musq-E))
+    return q - cost * cost * (b * b / (sint * sint) + a * a * (musq-E*E))
 
 def deriv_massive(y, zeta, a, mu, E, b, q):
     musq = mu*mu
