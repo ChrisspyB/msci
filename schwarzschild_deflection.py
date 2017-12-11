@@ -4,7 +4,7 @@ import scipy.integrate as spi
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-from deriv_funcs_light import deriv_light, E_f, rho, Delta, pomega
+from deriv_funcs_light import deriv, E_f, rho, Delta, pomega
 
 SAVE = False
 PLOT = True
@@ -33,14 +33,11 @@ cam_pos[:, 2] = np.arctan2(cam_y, cam_x)
 # initial (negative) ray directions in camera's cartesian coords
 # unit vectors in tangent space to FIDO
 n_0 = np.zeros((n_rays, 3))  # (e_r, e_theta, e_phi)
-# e_x
 n_0[:, 0] = np.cos(cam_pos[:, 2])
 n_0[:, 1] = 0
 n_0[:, 2] = -np.sin(cam_pos[:, 2])
 
-# note the minus signs above; rays are integrated backwards in time
-# and we would like to specify theta_0, phi_0 in the direction of
-# integration of the rays
+# note the signs above; rays are integrated backwards in time
 
 # initialise ray momenta and positions
 # Note: E_f doesnt depend on momentum
@@ -61,7 +58,7 @@ rays = np.zeros((n_rays, nt + 1, 6))
 deflec = np.zeros(n_rays)
 # integrate momenta and positions
 for i in range(n_rays):
-    rays[i] = spi.odeint(deriv_light, rays_0[i], zeta, (a,))
+    rays[i] = spi.odeint(deriv, rays_0[i], zeta, (a,))
 
 rays_x = np.sqrt(rays[:,:, 0]**2 + a * a) * \
     np.sin(rays[:,:, 1]) * np.cos(rays[:,:, 2])

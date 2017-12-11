@@ -4,7 +4,7 @@ import scipy.integrate as spi
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-from deriv_funcs_light import deriv_light, E_f, rho, Delta, pomega
+from deriv_funcs_light import deriv, E_f, rho, Delta, pomega
 
 SAVE = False
 PLOT = True
@@ -63,7 +63,7 @@ rays = np.zeros((n_rays, nt + 1, 6))
 deflec = np.zeros(n_rays)
 # integrate momenta and positions
 for i in range(n_rays):
-    rays[i] = spi.odeint(deriv_light, rays_0[i], zeta, (a,))
+    rays[i] = spi.odeint(deriv, rays_0[i], zeta, (a,))
 
 rays_x = np.sqrt(rays[:,:, 0]**2 + a * a) * \
     np.sin(rays[:,:, 1]) * np.cos(rays[:,:, 2])

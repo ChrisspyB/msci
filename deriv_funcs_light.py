@@ -106,7 +106,7 @@ def Theta(y, a):
     return q(y, a) - cost * cost * (p_phi * p_phi / (sint * sint) - a * a)
 
 
-def deriv_light(y, zeta, a):
+def deriv(y, zeta, a):
     r, theta, phi, p_r, p_theta, p_phi = y
     _delta = Delta(y, a)
     _rho_sqr = rho_sqr(y, a)
