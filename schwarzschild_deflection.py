@@ -24,7 +24,7 @@ rays_0 = np.zeros((n_rays, 6))
 
 # multiple camera positions (r, theta, phi)
 cam_pos = np.zeros((n_rays, 3))
-cam_y = np.linspace(6, 5000, n_rays)  # impact parameters
+cam_y = np.linspace(6, 200, n_rays)  # impact parameters
 cam_x = np.ones(n_rays) * x_dist
 cam_pos[:, 0] = np.sqrt(cam_x * cam_x + cam_y * cam_y)
 cam_pos[:, 1] = math.pi / 2
@@ -82,10 +82,10 @@ if PLOT:
     plt.ylabel("Y")
 
     plt.figure()
-    plt.plot(cam_y, deflec, label="Traced Rays")
-    plt.plot(cam_y, 4/cam_y, label="Theory")
-    plt.title("Deflection of rays with different starting Y")
-    plt.xlabel("Initial Y")
+    plt.plot(cam_y, deflec, label="From Traced Rays", linewidth = 1.0)
+    plt.plot(cam_y, 4/cam_y, '--', label="Theory", linewidth = 1.0)
+    #plt.title("Deflection of rays with different starting Y")
+    plt.xlabel("Impact Parameter")
     plt.ylabel("Deflection Angle")
     plt.legend()
     plt.grid()

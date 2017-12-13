@@ -25,8 +25,8 @@ rays_0 = np.zeros((n_rays, 6))
 # multiple camera positions (r, theta, phi)
 cam_pos = np.zeros((n_rays, 3))
 cam_y = np.concatenate(
-        (np.linspace(-250, -7, n_rays/2),
-         np.linspace(7, 250, n_rays/2)))  # impact parameters
+        (np.linspace(-200, -7, n_rays/2),
+         np.linspace(7, 200, n_rays/2)))  # impact parameters
 cam_x = np.ones(n_rays) * x_dist
 cam_pos[:, 0] = np.sqrt(cam_x * cam_x + cam_y * cam_y)
 cam_pos[:, 1] = math.pi / 2
@@ -86,7 +86,7 @@ if PLOT:
     plt.xlabel("X")
     plt.ylabel("Y")
     plt.figure()
-    plt.plot(cam_y, np.abs(deflec), label="Traced Rays")
+    plt.plot(cam_y, np.abs(deflec), label="Traced Rays", linewidth = 1.0)
     b = np.abs(cam_y)
     s = np.sign(-cam_y) # + = prograde, - = retrograde
     # kerr deflection in equatorial plane
@@ -94,9 +94,9 @@ if PLOT:
              4/b \
              + (15*math.pi/4 - 12*s*a) * 1/(b*b) \
              + (128/3 - 10*math.pi*s*a + 4*a*a) * 1/(b*b*b)
-             ,'--', label="Theory (Cubic Order)")
-    plt.title("Deflection of rays with different starting Y")
-    plt.xlabel("Initial Y")
+             ,'--', label="Theory (Cubic Order)", linewidth = 1.0)
+    #plt.title("Deflection of rays with different starting Y")
+    plt.xlabel("Impact Parameter")
     plt.ylabel("Deflection Angle")
     plt.legend()
     plt.grid()
