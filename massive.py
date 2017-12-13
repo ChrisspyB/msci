@@ -14,7 +14,7 @@ PLOT = 1
 
 nt = 10000
 
-T = 10000
+T = 2000
 
 a = 0.0  # black hole angular momentum
 
@@ -56,9 +56,13 @@ orbit_z = orbit[:, 1] * np.cos(orbit[:, 2])
 if SAVE:
     np.save("renderdata", np.dstack((orbit_x, orbit_y, orbit_z)))
 if PLOT:
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.set_zlim(-5,5)
-    ax.plot(orbit_x, orbit_y, zs=orbit_z)
+#    fig = plt.figure()
+#    ax = fig.add_subplot(111, projection='3d')
+#    ax.set_zlim(-5,5)
+#    ax.plot(orbit_x, orbit_y, zs=orbit_z)
+    
+    plt.figure(figsize=(8,8))
+    plt.plot(orbit_x, orbit_y, 'k', linewidth=0.5)
+    plt.title("r_0 = {}, L = {}, E = {}".format(r0,b,E))
 
     plt.show()
