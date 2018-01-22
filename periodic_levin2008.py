@@ -16,7 +16,7 @@ nt = 10000
 
 T = 2000
 
-a = 0.0  # black hole angular momentum
+a = 0.0 # black hole angular momentum
 
 # t, r, theta, phi, p_r, p_theta = y
 
