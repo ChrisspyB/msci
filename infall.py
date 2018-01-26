@@ -67,6 +67,7 @@ orbit_z = r * np.cos(theta)
 #    -2*E*(np.log( (1-np.sqrt(2/r))/(1+np.sqrt(2/r)) ) - \
 #         math.log( (1-np.sqrt(2/r0))/(1+np.sqrt(2/r0)) ))
 
+#^^ falls from infinity?
 
 # which disagrees with https://digitalcommons.usu.edu/cgi/viewcontent.cgi?article=1030&context=phys_capstoneproject
 infalltau = r0*(math.sqrt(r0/2)*(np.pi/2 - math.asin(math.sqrt(2/r0))) + math.sqrt(1-2/r0))
@@ -86,8 +87,8 @@ if PLOT:
     
     plt.figure()
     plt.title("Proper Infall Time | r_0 = {}".format(r0))
-    plt.plot(zeta, r, 'k', linewidth=0.5, label="simulated")
-    plt.plot(tau, r, 'k--', linewidth=0.5, label="theoretical")
+    plt.plot(zeta, r, linewidth=1, label="simulated")
+    plt.plot(tau, r, '--', linewidth=1, label="theoretical")
     plt.ylabel("r")
     plt.xlabel("tau")
     plt.legend()

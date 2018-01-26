@@ -13,7 +13,7 @@ n_rays = 2*250
 nt = 250  # time steps (time points - 1)
 # note: integration is adaptive, nt is just the number of points that get saved
 
-a = 0.99  # black hole angular momentum / M
+a = 0.9999  # black hole angular momentum / M
 
 x_dist = 1000000
 

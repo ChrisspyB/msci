@@ -6,7 +6,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from deriv_funcs_massive import deriv, q, energy
 
 # ----
-# Roughly reproduces FIG. 2 of Levin 2008
+# Roughly reproduces FIG. 15 (1,4,0) of Levin 2008
 # ----
 
 SAVE = 0
@@ -14,26 +14,26 @@ PLOT = 1
 
 nt = 10000
 
-T = 2000
+T = 80
 
-a = 0.0 # black hole angular momentum
+a = 0.995 # black hole angular momentum
 
 # t, r, theta, phi, p_r, p_theta = y
 
 # units of length are half the schwarzschild radius (also note c = 1)
 t0 = 0
-r0 = 27.75
+r0 = 4.519
 theta0 = np.pi/2
 phi0 = 0
 
 # these are componenets of the covariant 4-momentum (= 4-velocity, as mu = 1)
 p_r0 = 0
 p_theta0 = 0.0
-p_phi = 3.980393
+p_phi = 1.82
 
 y_0 = np.array([t0, r0, theta0, phi0, p_r0, p_theta0])
 
-# these are functions of _0:
+# these are functions of y_0:
 # angular momentum (= r * p^phi)
 b = p_phi
 # energy at infinity

@@ -67,8 +67,9 @@ def deriv(y, zeta, a, E, b, q):
     dqdtheta = -2*sint*cost*(a*a*(1-E*E)+b*b/sinsq)-2*b*b*cotsq*cott
     dp_theta = -a*a*cost*sint*(p_theta*p_theta+_delta*p_r*p_r)/_rho_sqr*_rho_sqr + (a*a*cost*sint*(_R+_delta*_Theta)/_rho_sqr-_delta*dqdtheta/2)/(_delta*_rho_sqr)
     
-    # close to event horizon
-    if (r - 2) < 1e-6:
+    # close (or past) to event horizon
+    # TODO: do this better (dependent on a)
+    if (r - 1) < 1e-6:
         print("TERMINATED")
         return np.zeros(6)
         
@@ -123,6 +124,26 @@ def energy(y, a, b):
     _a = invg[0,0]
     _b = -2*b*invg[0,3]
     _c = 1 + p_r*p_r*invg[1,1] + p_theta*p_theta*invg[2,2] + b*b*invg[3,3]
+    
+    right = math.sqrt(_b*_b - 4*_a*_c)/(2*_a)
+    left = -_b/(2*_a)
+    
+    return max(left - right, left + right)
+
+# returns time component of contravariant four momentum, given spatial part
+def time_contra(r, theta, pr, pt, pp, a):
+    
+    g = metric(np.array([0, r, theta, 0, 0, 0]), a)
+    
+    gtt = g[0,0]
+    gtphi = g[0, 3]
+    grr = g[1,1]
+    gthth = g[2,2]
+    gphiphi = g[3,3]
+    
+    _a = gtt
+    _b = 2*pp*gtphi
+    _c = pr*pr*grr + pt*pt*gthth + pp*pp*gphiphi + 1
     
     right = math.sqrt(_b*_b - 4*_a*_c)/(2*_a)
     left = -_b/(2*_a)
