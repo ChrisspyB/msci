@@ -107,8 +107,7 @@ mat = np.array([
 
 _p[1:4] = np.linalg.solve(mat, v_bh)
 
-_time = time_contra(r0,theta0,_p[1],_p[2],_p[3],a)
-_p[0] = _time
+_p[0] = time_contra(r0,theta0,_p[1],_p[2],_p[3],a)
 
 # multiply by metric for covariant 4-momentum
 metric0 = metric(np.array([0, r0, theta0, 0, 0, 0]), a) # only depends on r, theta
@@ -130,6 +129,10 @@ _q = q(theta0, p_theta0, a, E, b)
 
 zeta = np.linspace(0, T, nt + 1)
 orbit = np.zeros((nt + 1, 6))
+orbit_x = np.zeros((nt + 1, 6))
+orbit_y = np.zeros((nt + 1, 6))
+orbit_z = np.zeros((nt + 1, 6))
+
 
 orbit = spi.odeint(deriv, y_0, zeta, (a,E,b,_q), atol = 1e-10)
 

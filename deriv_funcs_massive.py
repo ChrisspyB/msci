@@ -65,13 +65,13 @@ def deriv(y, zeta, a, E, b, q):
     dp_r = (p_theta*p_theta-p_r*p_r*(_rho_sqr*(r-1)/r -_delta))*r/(_rho_sqr*_rho_sqr) + (dRdr+2*(r-1)*_Theta - (_R+_delta*_Theta)*(2*(r-1)/_delta + 2*r/_rho_sqr))/(2*_delta*_rho_sqr)
     
     dqdtheta = -2*sint*cost*(a*a*(1-E*E)+b*b/sinsq)-2*b*b*cotsq*cott
-    dp_theta = -a*a*cost*sint*(p_theta*p_theta+_delta*p_r*p_r)/_rho_sqr*_rho_sqr + (a*a*cost*sint*(_R+_delta*_Theta)/_rho_sqr-_delta*dqdtheta/2)/(_delta*_rho_sqr)
+    dp_theta = -a*a*cost*sint*(p_theta*p_theta+_delta*p_r*p_r)/(_rho_sqr*_rho_sqr) + (a*a*cost*sint*(_R+_delta*_Theta)/_rho_sqr-_delta*dqdtheta/2)/(_delta*_rho_sqr)
     
     # close (or past) to event horizon
     # TODO: do this better (dependent on a)
-    if (r - 1) < 1e-6:
-        print("TERMINATED")
-        return np.zeros(6)
+#    if (r - 1) < 1e-6:
+#        print("TERMINATED")
+#        return np.zeros(6)
         
     return np.array([dt, dr, dtheta, dphi, dp_r, dp_theta])
 
