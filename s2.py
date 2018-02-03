@@ -49,25 +49,40 @@ period *= YEAR * SOL / half_rs
 # cartesian coordinates of apoapsis in orbital plane
 ecc_anom = np.pi # 0 at periapsis, pi at apoapsis
 x_orb = sma * np.array([np.cos(ecc_anom)-ecc,
-                        np.sqrt(1-ecc*ecc)*np.sin(ecc_anom), 0])
+                        np.sqrt(1-ecc*ecc)*np.sin(ecc_anom),
+                        0])
+
 v_orb = 2*np.pi*sma*sma/(np.linalg.norm(x_orb)*period) * \
         np.array([-np.sin(ecc_anom),
                   np.cos(ecc_anom)*np.sqrt(1-ecc*ecc), 0])
 
 # rotation matrices
-R_arg = np.array([[np.cos(arg_peri), - np.sin(arg_peri), 0],
+R_arg = np.array([[np.cos(arg_peri), -np.sin(arg_peri), 0],
                    [np.sin(arg_peri), np.cos(arg_peri), 0],
                    [0, 0, 1]])
 R_incl = np.array([[1, 0, 0],
-                   [0, np.cos(incl), - np.sin(incl)],
+                   [0, np.cos(incl), -np.sin(incl)],
                    [0, np.sin(incl), np.cos(incl)]])
-R_long = np.array([[np.cos(long_asc), - np.sin(long_asc), 0],
+R_long = np.array([[np.cos(long_asc), -np.sin(long_asc), 0],
                    [np.sin(long_asc), np.cos(long_asc), 0],
                    [0, 0, 1]])
 
+R_mat = R_long @ R_incl @ R_arg
+
 # cartesian coords around BH, where z is along the spin axis
-x_bh = R_long @ R_incl @ R_arg @ x_orb
-v_bh = R_long @ R_incl @ R_arg @ v_orb
+x_bh = R_mat @ x_orb
+v_bh = R_mat @ v_orb
+
+# verified - orbit is close to this
+#test_ea = np.linspace(0, 2*np.pi, 50)
+#test_ellipse = np.zeros((50,3))
+#test_ellipse_bh = np.zeros((50,3))
+#for i in range(50):
+#        test_ellipse[i,0] = sma * (np.cos(test_ea[i]) - ecc)
+#        test_ellipse[i,1] = sma * np.sqrt(1-ecc*ecc) * np.sin(test_ea[i])
+#        
+#        test_ellipse_bh[i,:] = R_mat @ test_ellipse[i,:]
+        
 
 #x_bh = x_orb
 #v_bh = v_orb
@@ -83,6 +98,11 @@ a_xyz = a*a-x0*x0-y0*y0-z0*z0
 r0 = np.sqrt(-0.5*a_xyz + 0.5*np.sqrt(a_xyz*a_xyz + 4*a*a*z0*z0))
 
 theta0 = np.arccos(z0/r0)
+
+# verified - change back to get starting point
+# x = np.sqrt(r0*r0 + a*a)*np.sin(theta0)*np.cos(phi0)
+# y = np.sqrt(r0*r0 + a*a)*np.sin(theta0)*np.sin(phi0)
+# z = r0*np.cos(theta0)
 
 t0 = 0
 
@@ -100,8 +120,8 @@ v_bh = v_bh * gamma
 _p = np.zeros(4)
 
 mat = np.array([
-        [r0*x0/(r0*r0 + a*a), y0*np.tan(theta0), -y0],
-        [r0*y0/(r0*r0 + a*a), y0*np.tan(theta0), x0],
+        [r0*x0/(r0*r0 + a*a), -x0*np.tan(theta0 - np.pi/2), -y0],
+        [r0*y0/(r0*r0 + a*a), -y0*np.tan(theta0 - np.pi/2), x0],
         [z0/r0, -r0*np.sin(theta0), 0]
         ])
 
@@ -118,9 +138,9 @@ p_r0 = p_cov[1]
 p_theta0 = p_cov[2]
 p_phi = p_cov[3]
 
-y_0 = np.array([t0, r0, theta0, phi0, p_r0, p_theta0])
+orbit0 = np.array([t0, r0, theta0, phi0, p_r0, p_theta0])
 
-# these are functions of y_0:
+# these are functions of orbit0:
 # angular momentum (= r * p^phi for large r)
 b = p_phi
 
@@ -129,30 +149,39 @@ _q = q(theta0, p_theta0, a, E, b)
 
 zeta = np.linspace(0, T, nt + 1)
 orbit = np.zeros((nt + 1, 6))
-orbit_x = np.zeros((nt + 1, 6))
-orbit_y = np.zeros((nt + 1, 6))
-orbit_z = np.zeros((nt + 1, 6))
+orbit_xyz = np.zeros((nt + 1, 3))
 
 
-orbit = spi.odeint(deriv, y_0, zeta, (a,E,b,_q), atol = 1e-10)
+orbit = spi.odeint(deriv, orbit0, zeta, (a,E,b,_q), atol = 1e-10)
 
-orbit_x = np.sqrt(orbit[:, 1]**2 + a * a) * \
+orbit_xyz[:, 0] = np.sqrt(orbit[:, 1]**2 + a * a) * \
     np.sin(orbit[:, 2]) * np.cos(orbit[:, 3])
-orbit_y = np.sqrt(orbit[:, 1]**2 + a * a) * \
+orbit_xyz[:, 1] = np.sqrt(orbit[:, 1]**2 + a * a) * \
     np.sin(orbit[:, 2]) * np.sin(orbit[:, 3])
-orbit_z = orbit[:, 1] * np.cos(orbit[:, 2])
+orbit_xyz[:, 2] = orbit[:, 1] * np.cos(orbit[:, 2])
 
-if SAVE:
-    np.save("renderdata", np.dstack((orbit_x, orbit_y, orbit_z)))
+# transform back into orbital plane
+orbit_xyplane = np.zeros((nt + 1, 3))
+invR_mat = R_mat.transpose() # property of orthogonal matrix
+for i in range(nt+1):
+    orbit_xyplane[i,:] = invR_mat @ orbit_xyz[i,:]
+
 if PLOT:
     plt.close('all')
     
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    ax.plot(orbit_x, orbit_y, zs=orbit_z)
+    ax.scatter([0],[0])
+    ax.plot(orbit_xyz[:, 0], orbit_xyz[:, 1], zs=orbit_xyz[:, 2])
+#    check orbit is close to elliptical fit
+#    ax.plot(test_ellipse_bh[:, 0], test_ellipse_bh[:, 1], zs=test_ellipse_bh[:, 2])
+#    check orbit is 'flat' after inverse transform
+#    ax.plot(orbit_xyplane[:, 0], orbit_xyplane[:, 1], zs=orbit_xyplane[:, 2])
     
+    # plot in orbital plane
     plt.figure(figsize=(8,8))
-    plt.plot(orbit_x, orbit_y, 'k', linewidth=0.5)
+    plt.plot(orbit_xyplane[:, 0], orbit_xyplane[:, 1], 'k', linewidth=0.5)
+    plt.scatter([0],[0], c='k')
     plt.title("r_0 = {}, L = {}, E = {}".format(r0,b,E))
 
     plt.show()
