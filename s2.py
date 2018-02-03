@@ -10,9 +10,9 @@ PLOT = 1
 
 nt = 1000
 
-T = 100000000 # units of 1/2 r_s / c
+T = 80000000 # units of 1/2 r_s / c
 
-a = 0.0 # black hole angular momentum
+a = 0.999 # black hole angular momentum
 
 # black hole mass
 M = 4.28e6 # solar masses
@@ -66,23 +66,23 @@ R_long = np.array([[np.cos(long_asc), - np.sin(long_asc), 0],
                    [0, 0, 1]])
 
 # cartesian coords around BH, where z is along the spin axis
-#x_bh = R_long @ R_incl @ R_arg @ x_orb
-#v_bh = R_long @ R_incl @ R_arg @ v_orb
+x_bh = R_long @ R_incl @ R_arg @ x_orb
+v_bh = R_long @ R_incl @ R_arg @ v_orb
 
-x_bh = x_orb
-v_bh = v_orb
+#x_bh = x_orb
+#v_bh = v_orb
 
 # find Boyer Lindquist position
-_x = x_bh[0]
-_y = x_bh[1]
-_z = x_bh[2]
+x0 = x_bh[0]
+y0 = x_bh[1]
+z0 = x_bh[2]
 
-phi0 = np.arctan2(_y,_x)
+phi0 = np.arctan2(y0,x0)
 
-a_xyz = a*a-_x*_x-_y*_y-_z*_z
-r0 = np.sqrt(-0.5*a_xyz + 0.5*np.sqrt(a_xyz*a_xyz + 4*a*a*_z*_z))
+a_xyz = a*a-x0*x0-y0*y0-z0*z0
+r0 = np.sqrt(-0.5*a_xyz + 0.5*np.sqrt(a_xyz*a_xyz + 4*a*a*z0*z0))
 
-theta0 = np.arccos(_z/r0)
+theta0 = np.arccos(z0/r0)
 
 t0 = 0
 
@@ -93,21 +93,20 @@ v_sqr = np.linalg.norm(v_orb)*np.linalg.norm(v_orb)
 # lorentz factor
 gamma = 1/np.sqrt(1 - v_sqr)
 
-# rotate to BL basis
-_vx = v_bh[0]
-_vy = v_bh[1]
-_vz = v_bh[2]
+# change to proper velocity
+v_bh = v_bh * gamma
 
-_vr = _vy*np.sin(phi0) + _vx*np.cos(phi0)
-vphi = -_vx*np.sin(phi0) + _vy*np.cos(phi0)
+# find spatial part of BL 4-velocity/momentum (d/dtau of spatial coords)
+_p = np.zeros(4)
 
-vr = _vr*np.sin(theta0) + _vz*np.cos(theta0)
-vtheta = -_vz*np.sin(theta0) + _vr*np.cos(theta0)
+mat = np.array([
+        [r0*x0/(r0*r0 + a*a), y0*np.tan(theta0), -y0],
+        [r0*y0/(r0*r0 + a*a), y0*np.tan(theta0), x0],
+        [z0/r0, -r0*np.sin(theta0), 0]
+        ])
 
-#_p = np.array([gamma, gamma * vr, gamma * vtheta, gamma * vphi])
-# must change to boyer lindquist four momentum !!!!
+_p[1:4] = np.linalg.solve(mat, v_bh)
 
-_p = gamma * np.array([0, vr, vtheta/r0, vphi/(r0*np.sin(theta0))]) #check this for spin too
 _time = time_contra(r0,theta0,_p[1],_p[2],_p[3],a)
 _p[0] = _time
 

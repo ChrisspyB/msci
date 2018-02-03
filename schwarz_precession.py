@@ -3,6 +3,10 @@ import scipy.integrate as spi
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
+from matplotlib import rc
+rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+rc('text', usetex=True)
+
 from deriv_funcs_massive import deriv, q, energy
 
 SAVE = 0
@@ -10,7 +14,7 @@ PLOT = 1
 
 nt = 10000
 
-T = 1000000
+T = 600000
 
 a = 0.0  # black hole angular momentum
 
@@ -106,8 +110,10 @@ if PLOT:
 #    ax.set_zlim(-5,5)
 #    ax.plot(orbit_x, orbit_y, zs=orbit_z)
     
-    plt.figure(figsize=(8,8))
+    plt.figure(figsize=(4,4))
     plt.plot(orbit_x, orbit_y, 'k', linewidth=0.5)
-    plt.title("r_0 = {}, L = {}, E = {}".format(r0,b,E))
+#    plt.title("r_0 = {}, L = {}, E = {}".format(r0,b,E))
+    plt.xlabel(r'x (r\textsubscript{s} / 2)',fontsize=16)
+    plt.ylabel(r'y (r\textsubscript{s} / 2)',fontsize=16)
     
     plt.show()
