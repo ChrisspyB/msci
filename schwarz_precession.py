@@ -2,11 +2,9 @@ import numpy as np
 import scipy.integrate as spi
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-
 from matplotlib import rc
-rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
-rc('text', usetex=True)
 
+from utils import maxima, minima
 from deriv_funcs_massive import deriv, q, energy
 
 SAVE = 0
@@ -60,43 +58,15 @@ orbit_y = np.sqrt(r**2 + a * a) * \
     np.sin(theta) * np.sin(phi)
 orbit_z = r * np.cos(theta)
 
-def maxima(deriv):
-    inds = []
-    for i in range(len(deriv) - 1):
-        # turning point is where deriv crosses zero
-        if deriv[i+1] < 0 and deriv[i] >= 0:
-            di = abs(deriv[i])
-            di1 = abs(deriv[i+1])
-            # find closest point to zero
-            if di > di1:
-                inds.append(i+1)
-            else:
-                inds.append(i)
-    return inds
-
-def minima(deriv):
-    inds = []
-    for i in range(len(deriv) - 1):
-        # turning point is where deriv crosses zero
-        if deriv[i+1] > 0 and deriv[i] <= 0:
-            di = abs(deriv[i])
-            di1 = abs(deriv[i+1])
-            # find closest point to zero
-            if di > di1:
-                inds.append(i+1)
-            else:
-                inds.append(i)
-    return inds
-
 imaxs = maxima(pr)
 imins = minima(pr)
 
-deltaphi = (phi[imaxs][1] - phi[imaxs][0] - 2*np.pi*np.ones(len(t)))[0]
+deltaphi = phi[imaxs][1] - phi[imaxs][0] - 2*np.pi
 print("Precession per Orbit:", deltaphi)
 # semi major axis
 a = (r[imaxs][0] + r[imins][0])/2
 period = t[imaxs][1] - t[imaxs][0]
-# ellipticity
+# eccentricity
 e = (r[imaxs][0] - r[imins][0])/(r[imaxs][0] + r[imins][0])
 # theoretical precession angle - Einstein
 thdeltaphi = 24 * np.pi**3 * a * a / (period*period * (1 - e*e))
@@ -105,6 +75,9 @@ print("Theoretical Value:", thdeltaphi)
 if SAVE:
     np.save("renderdata", np.dstack((orbit_x, orbit_y, orbit_z)))
 if PLOT:
+#    rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+#    rc('text', usetex=True)
+    
 #    fig = plt.figure()
 #    ax = fig.add_subplot(111, projection='3d')
 #    ax.set_zlim(-5,5)

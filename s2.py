@@ -3,22 +3,25 @@ import scipy.integrate as spi
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
+from utils import maxima, minima
 from deriv_funcs_massive import deriv, q, metric, time_contra
 
 SAVE = 0
 PLOT = 1
 
-nt = 1000
+nt = 100000
+# would be good to only have more points near periapsis
 
 T = 80000000 # units of 1/2 r_s / c
 
-a = 0.999 # black hole angular momentum
+a = 0.0 # black hole angular momentum
 
 # black hole mass
 M = 4.28e6 # solar masses
 # distance from earth
 R_0 = 8.32 # kpc
 
+# definitions as in Grould et al. 2017 (relation to Earth observer frame)
 # orbital elements
 sma = 0.1255 # arcseconds in Earth's sky
 ecc = 0.8839
@@ -52,6 +55,8 @@ x_orb = sma * np.array([np.cos(ecc_anom)-ecc,
                         np.sqrt(1-ecc*ecc)*np.sin(ecc_anom),
                         0])
 
+# looking from earth, S2 orbit is clockwise
+# so sign of y here must agree (currently does)
 v_orb = 2*np.pi*sma*sma/(np.linalg.norm(x_orb)*period) * \
         np.array([-np.sin(ecc_anom),
                   np.cos(ecc_anom)*np.sqrt(1-ecc*ecc), 0])
@@ -69,28 +74,32 @@ R_long = np.array([[np.cos(long_asc), -np.sin(long_asc), 0],
 
 R_mat = R_long @ R_incl @ R_arg
 
-# cartesian coords around BH, where z is along the spin axis
-x_bh = R_mat @ x_orb
-v_bh = R_mat @ v_orb
+# cartesian coords in observer frame
+# z axis points toward earth
+# x axis is north (declination)
+# y axis is west (right ascension)
+x_obs = R_mat @ x_orb
+v_obs = R_mat @ v_orb
+# using this as black hole frame for now, so spin is clockwise as seen from earth
 
 # verified - orbit is close to this
 #test_ea = np.linspace(0, 2*np.pi, 50)
 #test_ellipse = np.zeros((50,3))
-#test_ellipse_bh = np.zeros((50,3))
+#test_ellipse_obs = np.zeros((50,3))
 #for i in range(50):
 #        test_ellipse[i,0] = sma * (np.cos(test_ea[i]) - ecc)
 #        test_ellipse[i,1] = sma * np.sqrt(1-ecc*ecc) * np.sin(test_ea[i])
 #        
-#        test_ellipse_bh[i,:] = R_mat @ test_ellipse[i,:]
+#        test_ellipse_obs[i,:] = R_mat @ test_ellipse[i,:]
         
 
-#x_bh = x_orb
-#v_bh = v_orb
+#x_obs = x_orb
+#v_obs = v_orb
 
 # find Boyer Lindquist position
-x0 = x_bh[0]
-y0 = x_bh[1]
-z0 = x_bh[2]
+x0 = x_obs[0]
+y0 = x_obs[1]
+z0 = x_obs[2]
 
 phi0 = np.arctan2(y0,x0)
 
@@ -114,7 +123,7 @@ v_sqr = np.linalg.norm(v_orb)*np.linalg.norm(v_orb)
 gamma = 1/np.sqrt(1 - v_sqr)
 
 # change to proper velocity
-v_bh = v_bh * gamma
+v_obs = v_obs * gamma
 
 # find spatial part of BL 4-velocity/momentum (d/dtau of spatial coords)
 _p = np.zeros(4)
@@ -125,7 +134,7 @@ mat = np.array([
         [z0/r0, -r0*np.sin(theta0), 0]
         ])
 
-_p[1:4] = np.linalg.solve(mat, v_bh)
+_p[1:4] = np.linalg.solve(mat, v_obs)
 
 _p[0] = time_contra(r0,theta0,_p[1],_p[2],_p[3],a)
 
@@ -152,7 +161,7 @@ orbit = np.zeros((nt + 1, 6))
 orbit_xyz = np.zeros((nt + 1, 3))
 
 
-orbit = spi.odeint(deriv, orbit0, zeta, (a,E,b,_q), atol = 1e-10)
+orbit = spi.odeint(deriv, orbit0, zeta, (a,E,b,_q), atol = 1e-12)
 
 orbit_xyz[:, 0] = np.sqrt(orbit[:, 1]**2 + a * a) * \
     np.sin(orbit[:, 2]) * np.cos(orbit[:, 3])
@@ -166,6 +175,26 @@ invR_mat = R_mat.transpose() # property of orthogonal matrix
 for i in range(nt+1):
     orbit_xyplane[i,:] = invR_mat @ orbit_xyz[i,:]
 
+# find precession angle
+t = orbit[:, 0]
+pr = orbit[:, 4]
+
+imaxs = maxima(pr)
+imins = minima(pr)
+
+phase = np.arctan2(orbit_xyplane[:, 1], orbit_xyplane[:, 0])
+# different from keplerian fit
+simul_period = t[imaxs][1] - t[imaxs][0]
+simul_sma = (orbit_xyplane[imins, 0][0] - orbit_xyplane[imaxs, 0][0])/2
+
+deltaphase = phase[imaxs][1] - phase[imaxs][0] + 2*np.pi
+print("Precession per Orbit:", deltaphase)
+# semi major axis
+# theoretical precession angle - Einstein
+thdeltaphase = 24 * np.pi**3 * simul_sma * simul_sma \
+    / (simul_period*simul_period * (1 - ecc*ecc))
+print("Theoretical Value (no spin, small angle):", thdeltaphase)
+
 if PLOT:
     plt.close('all')
     
@@ -174,14 +203,21 @@ if PLOT:
     ax.scatter([0],[0])
     ax.plot(orbit_xyz[:, 0], orbit_xyz[:, 1], zs=orbit_xyz[:, 2])
 #    check orbit is close to elliptical fit
-#    ax.plot(test_ellipse_bh[:, 0], test_ellipse_bh[:, 1], zs=test_ellipse_bh[:, 2])
+#    ax.plot(test_ellipse_obs[:, 0], test_ellipse_obs[:, 1], zs=test_ellipse_obs[:, 2])
 #    check orbit is 'flat' after inverse transform
 #    ax.plot(orbit_xyplane[:, 0], orbit_xyplane[:, 1], zs=orbit_xyplane[:, 2])
     
     # plot in orbital plane
     plt.figure(figsize=(8,8))
     plt.plot(orbit_xyplane[:, 0], orbit_xyplane[:, 1], 'k', linewidth=0.5)
-    plt.scatter([0],[0], c='k')
+    plt.scatter([0],[0], c='k', marker='x')
+    plt.title("r_0 = {}, L = {}, E = {}".format(r0,b,E))
+    
+    # view from Earth's sky
+    # (east, north)
+    plt.figure(figsize=(8,8))
+    plt.plot(-orbit_xyz[:, 1], orbit_xyz[:, 0], 'k', linewidth=0.5)
+    plt.scatter([0],[0], c='k', marker='x')
     plt.title("r_0 = {}, L = {}, E = {}".format(r0,b,E))
 
     plt.show()
