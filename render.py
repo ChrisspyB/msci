@@ -1,15 +1,18 @@
-#!/usr/bin/env python
-
+#TODO: Read and plot several orbits at once
 import numpy as np
 import vtk
 
-# Setup
+# Setup Input
+a = 0.99999  # black hole angular momentum
+fname = "spinrenderdata.npy" # filename of .npy of ray trajectory
 
-a = 0.5  # black hole angular momentum
-fname = "renderdata.npy"
-color_ray = [1,1,1] # r,g,b values 0 to 1
-color_bg = [0,0,0]
-
+# Visual Preferences
+radius_bh = 1+np.sqrt(1-a*a) # radius to draw the blackhole sphere
+color_ray = [0,0,0] # light ray color (r,g,b values 0 to 1)
+color_bg = [1,1,1] # background color
+color_bh = [1,1,1] # black hole color
+opacity_bh = 1.
+window_size = [800,800]
 rays = np.load(fname)
 points = vtk.vtkPoints()
 lines = vtk.vtkCellArray()
@@ -18,7 +21,7 @@ for ray in rays:
     for point in ray:
         points.InsertNextPoint(point)
         
-# NOTE: Main bottleneck (use vtk c++ if too slow)
+# NOTE: This is the main bottleneck (use vtk c++ if too slow)
 for i in range(rays.shape[0]*rays.shape[1]-1):
     if (i+1)%(rays.shape[1]) == 0: # do not connect distinct rays
         continue
@@ -34,9 +37,9 @@ linesPolyData.SetLines(lines)
 
 sphere = vtk.vtkSphereSource()
 sphere.SetCenter(0,0,0)
-sphere.SetRadius(1+np.sqrt(1-a*a))
-sphere.SetPhiResolution(16)
-sphere.SetThetaResolution(16)
+sphere.SetRadius(radius_bh)
+sphere.SetPhiResolution(32)
+sphere.SetThetaResolution(32)
 
 # Configure Mappers
 linesMapper = vtk.vtkPolyDataMapper()
@@ -51,8 +54,8 @@ linesActor.GetProperty().SetColor(color_ray)
 
 sphereActor = vtk.vtkActor()
 sphereActor.SetMapper(sphereMapper)
-sphereActor.GetProperty().SetOpacity(1.)
-sphereActor.GetProperty().SetColor([0.,0.,0.])
+sphereActor.GetProperty().SetOpacity(opacity_bh)
+sphereActor.GetProperty().SetColor(color_bh)
 
 # Configure Renderer
 ren = vtk.vtkRenderer()
@@ -66,7 +69,7 @@ ren.AddActor(linesActor)
 ren.AddActor(sphereActor)
 
 ren.SetBackground(color_bg)
-window.SetSize(800, 800)
+window.SetSize(window_size)
 
 # Start
 iren.Initialize()
