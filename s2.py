@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.integrate as spi
+import scipy.optimize as spo
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -297,8 +298,8 @@ peri_obs = orbit_obs[imins][0]
 # takes a long time; adjust nx, ny to speed up
 nx = 25
 ny = 25
-xspace = np.linspace(-3000, -1000, nx)
-yspace = np.linspace(-1000, 1000, ny)
+xspace = np.linspace(-2231, -2229, nx)
+yspace = np.linspace(387, 389, ny)
 
 min_dist = np.zeros((ny,nx))
 
@@ -310,6 +311,16 @@ for i in range(nx):
         _y = yspace[j]
         min_dist[j, i] = minimum_distance(_x, _y, peri_obs, a, 10000)
         print(i, j)
+
+# minimise min_dist function to find deflection
+min_dist_f = lambda xs: minimum_distance(xs[0], xs[1], peri_obs, a, 10000)
+res = spo.minimize(min_dist_f,
+                   x0=peri_obs[:2])
+
+deflec = res.x - peri_obs[:2]
+to_arcsec = half_rs / (1000 * R_0 * AU)
+deflec *= to_arcsec # ~ 0.8 micro arcseconds
+print('Deflection Angle at Periapsis: ', deflec, ' micro as')
 
 if PLOT:
     plt.close('all')
@@ -339,7 +350,6 @@ if PLOT:
     # view from Earth's sky
     # (west, north)
     plt.figure(figsize=(8,8))
-    to_arcsec = half_rs / (1000 * R_0 * AU)
     plt.plot(-orbit_obs[:, 1]*to_arcsec, orbit_obs[:, 0]*to_arcsec, 'k', linewidth=0.5)
     plt.xlabel("-alpha") # - right ascension
     plt.ylabel("delta") # declination
@@ -348,9 +358,10 @@ if PLOT:
     
     # distance of rays to periapsis
     plt.figure(figsize=(8,8))
-    cs = plt.contourf(xspace, yspace, min_dist, 100, cmap='viridis')
+    cs = plt.contourf(xspace*to_arcsec*1e6, yspace*to_arcsec*1e6, min_dist,
+                      100, cmap='viridis')
     plt.colorbar(cs, orientation='vertical')
     
-    plt.scatter(peri_obs[0], peri_obs[1], marker='x')
-
+    plt.scatter(peri_obs[0]*to_arcsec*1e6, peri_obs[1]*to_arcsec*1e6, marker='x')
+    
     plt.show()
