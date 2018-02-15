@@ -4,7 +4,8 @@ import scipy.integrate as spi
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-from deriv_funcs_light import deriv, E_f, rho, Delta, pomega
+from deriv_funcs_light import deriv, E_f, rho, Delta, pomega, metric
+from utils import bl_to_xyz
 
 SAVE = False
 PLOT = True
@@ -13,7 +14,7 @@ n_rays = 2*250
 nt = 250  # time steps (time points - 1)
 # note: integration is adaptive, nt is just the number of points that get saved
 
-a = 0.9999  # black hole angular momentum / M
+a = 0.99  # black hole angular momentum / M
 
 x_dist = 1000000
 
@@ -47,23 +48,24 @@ n_0[:, 2] = -np.sin(cam_pos[:, 2])
 # initialise ray momenta and positions
 # Note: E_f doesnt depend on momentum
 for i in range(n_rays):
-    y_0 = np.concatenate((cam_pos[i,:], np.zeros(3)))
+    y_0 = np.concatenate((cam_pos[i,:], np.zeros(2)))
     rays_0[i, 3] = n_0[i, 0] * \
         E_f(y_0, n_0[i, 2], a) * rho(y_0, a) / math.sqrt(Delta(y_0, a))
     rays_0[i, 4] = n_0[i, 1] * E_f(y_0, n_0[i, 2], a) * rho(y_0, a)
     rays_0[i, 5] = n_0[i, 2] * \
         E_f(y_0, n_0[i, 2], a) * pomega(y_0, a)  # = b (conserved)
 
-rays_0[:, 0:3] = cam_pos.copy()
+rays_0[:, :3] = cam_pos.copy()
 
 zeta = np.linspace(0, -2*x_dist, nt + 1)
 
-rays = np.zeros((n_rays, nt + 1, 6))
+rays = np.zeros((n_rays, nt + 1, 5))
 
 deflec = np.zeros(n_rays)
 # integrate momenta and positions
 for i in range(n_rays):
-    rays[i] = spi.odeint(deriv, rays_0[i], zeta, (a,))
+    b = rays_0[i, 5]
+    rays[i] = spi.odeint(deriv, rays_0[i, :5], zeta, (a,b))
 
 rays_x = np.sqrt(rays[:,:, 0]**2 + a * a) * \
     np.sin(rays[:,:, 1]) * np.cos(rays[:,:, 2])
@@ -74,6 +76,36 @@ rays_z = rays[:,:, 0] * np.cos(rays[:,:, 1])
 dx = rays_x[:, -1] - rays_x[:, -2]
 dy = rays_y[:, -1] - rays_y[:, -2]
 deflec = np.arctan2(-dy, -dx)
+
+# test alternative way of finding initial conditions
+# contravariant 4-momentum
+_v0 = np.array([-1, 0, 0])
+
+_ray0 = rays_0[0]
+ray0 = _ray0[:5]
+
+r0, theta0, phi0, pr0, pt0 = ray0
+x0, y0, z0 = bl_to_xyz(ray0[:3], a)
+_b = _ray0[5]
+
+mat = np.array([
+        [r0*x0/(r0*r0 + a*a), -x0*np.tan(theta0 - np.pi/2), -y0],
+        [r0*y0/(r0*r0 + a*a), -y0*np.tan(theta0 - np.pi/2), x0],
+        [z0/r0, -r0*np.sin(theta0), 0]
+        ])
+    
+metric0 = metric(ray0, a)
+
+_p = np.zeros(4)
+_p[1:4] = np.linalg.solve(mat, _v0)
+
+# from definition of energy E = -p^a u_a
+_p[0] = (-1 - _p[2] * metric0[0, 2])/metric0[0,0]
+
+_p_cov = metric0 @ _p
+
+# very close, but not quite the same
+
 
 if SAVE:
     np.save("renderdata", np.dstack((rays_x, rays_y, rays_z)))

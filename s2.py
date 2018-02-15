@@ -3,8 +3,11 @@ import scipy.integrate as spi
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-from utils import maxima, minima
+from utils import maxima, minima, xyz_to_bl
 from deriv_funcs_massive import deriv, q, metric
+from deriv_funcs_light import E_f, rho, Delta, pomega, ray0_b_from_pos0_n0
+from deriv_funcs_light import deriv as deriv_l
+from deriv_funcs_light import metric as metric_l
 
 SAVE = 0
 PLOT = 1
@@ -86,8 +89,10 @@ orb_from_obs = obs_from_orb.transpose() # property of orthogonal matrix
 
 # spin orientation in observer frame
 # (using same parameters as for orbit)
+#spin_phi = -0.3 # anti clockwise from x in x-y plane
+#spin_theta = np.pi - incl - 0.2 # angle made to z axis
 spin_phi = 0 # anti clockwise from x in x-y plane
-spin_theta = np.pi # angle made to z axis
+spin_theta = 0 # angle made to z axis
 
 R_spin_phi = np.array([[np.cos(spin_phi), np.sin(spin_phi), 0],
                       [-np.sin(spin_phi), np.cos(spin_phi), 0],
@@ -222,6 +227,90 @@ print("Precession per Orbit:", deltaphase)
 thdeltaphase = 6 * np.pi / (sma * (1 - ecc*ecc))
 print("Theoretical Value (no spin, small angle):", thdeltaphase)
 
+# minimum distance to pos from ray originating at (x,y,infinity)
+# i.e. rays from Earth
+def minimum_distance(x, y, pos, a, nt):
+    # initial position(x0,y0,z0) in obs frame
+    z_inf = 100000 # some large number compared to r_s/2
+    
+    xyz0 = bh_from_obs @ np.array([x,y,z_inf])
+    x0, y0, z0 = xyz0
+    
+    # initial position and direction of ray
+    pos0 = xyz_to_bl(xyz0, a)
+    r0, theta0, phi0 = pos0
+    
+    # rays coming to Earth from star
+    _v0 = bh_from_obs @ np.array([0, 0, 1])
+    
+    mat = np.array([
+            [r0*x0/(r0*r0 + a*a), -x0*np.tan(theta0 - np.pi/2), -y0],
+            [r0*y0/(r0*r0 + a*a), -y0*np.tan(theta0 - np.pi/2), x0],
+            [z0/r0, -r0*np.sin(theta0), 0]
+            ])
+    
+    # initial [r, theta, phi, pr, pt]
+    ray0 = np.concatenate((pos0, np.zeros(2)))
+    
+    metric0 = metric_l(ray0, a)
+    
+    _p = np.zeros(4)
+    try:
+        _p[1:4] = np.linalg.solve(mat, _v0)
+    except:
+        print(mat)
+    
+    # from definition of energy E = -p^a u_a
+    _p[0] = (-1 - _p[2] * metric0[0, 2])/metric0[0,0]
+    
+    _p_cov = metric0 @ _p
+    
+    ray0[3:5] = _p_cov[1:3]
+    b = _p_cov[3]
+    
+    _zeta = np.linspace(0, -1.2*z_inf, nt + 1)
+    
+    ray = spi.odeint(deriv_l, ray0, _zeta, (a,b), atol = 1e-10)
+    
+    ray_xyz = np.zeros((nt + 1, 3))
+    
+    ray_xyz[:, 0] = np.sqrt(ray[:, 0]*ray[:, 0] + a * a) * \
+        np.sin(ray[:, 1]) * np.cos(ray[:, 2])
+    ray_xyz[:, 1] = np.sqrt(ray[:, 0]*ray[:, 0] + a * a) * \
+        np.sin(ray[:, 1]) * np.sin(ray[:, 2])
+    ray_xyz[:, 2] = ray[:, 0] * np.cos(ray[:, 1])
+    
+    dist_sqr_min = 2*z_inf*z_inf # further than possible start
+    for i in range(nt + 1):
+        ray_obs = obs_from_bh @ ray_xyz[i]
+        disp = ray_obs - pos
+        dist_sqr = disp @ disp
+        if dist_sqr < dist_sqr_min:
+            dist_sqr_min = dist_sqr
+    
+    return np.sqrt(dist_sqr_min)
+
+# find distance of rays to periapsis
+
+peri_obs = orbit_obs[imins][0]
+
+# takes a long time; adjust nx, ny to speed up
+nx = 25
+ny = 25
+xspace = np.linspace(-3000, -1000, nx)
+yspace = np.linspace(-1000, 1000, ny)
+
+min_dist = np.zeros((ny,nx))
+
+print('Closest Ray: ', np.min(min_dist))
+
+for i in range(nx):
+    for j in range(nx):
+        _x = xspace[i]
+        _y = yspace[j]
+        min_dist[j, i] = minimum_distance(_x, _y, peri_obs, a, 10000)
+        print(i, j)
+
 if PLOT:
     plt.close('all')
     
@@ -229,10 +318,17 @@ if PLOT:
     ax = fig.add_subplot(111, projection='3d')
     ax.scatter([0],[0])
     ax.plot(orbit_obs[:, 0], orbit_obs[:, 1], zs=orbit_obs[:, 2])
+    
 #    check orbit is close to elliptical fit
 #    ax.plot(test_ellipse_obs[:, 0], test_ellipse_obs[:, 1], zs=test_ellipse_obs[:, 2])
 #    check orbit is 'flat' after inverse transform
 #    ax.plot(orbit_xyplane[:, 0], orbit_xyplane[:, 1], zs=orbit_xyplane[:, 2])
+    
+#    check spin transformation
+    _s = np.array([0,0,-10000])
+    s = obs_from_bh @ _s
+    
+    ax.plot([0,s[0]], [0,s[1]], zs=[0,s[2]])
     
     # plot in orbital plane
     plt.figure(figsize=(8,8))
@@ -249,5 +345,12 @@ if PLOT:
     plt.ylabel("delta") # declination
     plt.scatter([0],[0], c='k', marker='x')
     plt.title("r_0 = {}, L = {}, E = {}".format(r0,b,E))
+    
+    # distance of rays to periapsis
+    plt.figure(figsize=(8,8))
+    cs = plt.contourf(xspace, yspace, min_dist, 100, cmap='viridis')
+    plt.colorbar(cs, orientation='vertical')
+    
+    plt.scatter(peri_obs[0], peri_obs[1], marker='x')
 
     plt.show()
