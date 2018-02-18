@@ -191,8 +191,29 @@ def get_orbitxyz(orbit,a):
 	z = orbit[:,1]*np.cos(orbit[:,2])
 	return x,y,z
 
-def save_orbits(orbits):
-	#TODO: Save orbtits in a convenient form readable by render.py
+def save_orbitsxyz(params,fname="orbitsxyz"):
+	#Save x,y,z orbits to be drawn by render.py
+	x,y,z = [],[],[]
+	for o in params:
+		orbit = calc_orbits(o["sma"],o["ecc"],o["incl"],o["long_asc"],o["arg_peri"],o["period"])
+		orbit_x,orbit_y,orbit_z = get_orbitxyz(orbit,a)
+		x.append(orbit_x)
+		y.append(orbit_y)
+		z.append(orbit_z)
+	np.save(fname, np.dstack((x,y,z)))
+	return
+def save_orbitani(params,fname="orbitsani"):
+	#Save t,x,y,z orbits to be animated by render.py
+	t,x,y,z = [],[],[],[]
+	for o in params:
+		orbit = calc_orbits(o["sma"],o["ecc"],o["incl"],o["long_asc"],o["arg_peri"],o["period"])
+		orbit_x,orbit_y,orbit_z = get_orbitxyz(orbit,a)
+		orbit_t = orbit[:,0]
+		x.append(orbit_x)
+		y.append(orbit_y)
+		z.append(orbit_z)
+		t.append(orbit_t)
+	np.save(fname, np.dstack((t,x,y,z)))
 	return
 
 # eg 
@@ -203,4 +224,7 @@ starnames = ['S1','S2','S4','S6','S8','S9','S12','S13','S14','S17',
 'S42','S54','S55','S60','S66','S67','S71','S83','S85','S87','S89',
 'S91','S96','S97','S145','S175','R34','R44']
 
-draw_orbits(read_params("gillessen_orbits.txt",starnames[:20]))
+#eg 1: render (plt) orbits for first 20 stars
+# draw_orbits(read_params("gillessen_orbits.txt",starnames[:20]))
+#eg 2: save (t,x,y,z) for 10 orbits, to be rendered in render.py
+# save_orbitani(read_params("gillessen_orbits.txt",starnames[:10]),"orbitsani10")
