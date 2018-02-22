@@ -28,7 +28,7 @@ def minima(deriv):
                 inds.append(i)
     return inds
 
-def xyz_to_bl(pos, a):
+def _xyz_to_bl(pos, a):
     x, y, z = pos
 
     phi = np.arctan2(y,x)
@@ -38,7 +38,18 @@ def xyz_to_bl(pos, a):
     
     return np.array([r,theta,phi])
 
-def bl_to_xyz(pos, a):
+# vectorized
+def xyz_to_bl(xyzs, a):
+    if xyzs.ndim == 1:
+        return _xyz_to_bl(xyzs, a)
+    else:
+        assert(xyzs.shape == (len(xyzs), 3))
+        bl_pos = np.zeros((len(xyzs), 3))
+        for i in range(len(xyzs)):
+            bl_pos[i, :] = _xyz_to_bl(xyzs[i, :], a)
+        return bl_pos
+
+def _bl_to_xyz(pos, a):
     r, theta, phi = pos
     
     x = np.sqrt(r*r + a * a) * np.sin(theta) * np.cos(phi)
@@ -46,3 +57,30 @@ def bl_to_xyz(pos, a):
     z = r * np.cos(theta)
     
     return np.array([x,y,z])
+
+# vectorized
+def bl_to_xyz(bl_pos, a):
+    if bl_pos.ndim == 1:
+        return _bl_to_xyz(bl_pos, a)
+    else:
+        assert(bl_pos.shape == (len(bl_pos), 3))
+        
+        xyzs = np.zeros((len(bl_pos), 3))
+
+        xyzs[:, 0] = np.sqrt(bl_pos[:, 0]*bl_pos[:, 0] + a * a) * \
+            np.sin(bl_pos[:, 1]) * np.cos(bl_pos[:, 2])
+        xyzs[:, 1] = np.sqrt(bl_pos[:, 0]*bl_pos[:, 0] + a * a) * \
+            np.sin(bl_pos[:, 1]) * np.sin(bl_pos[:, 2])
+        xyzs[:, 2] = bl_pos[:, 0] * np.cos(bl_pos[:, 1])
+
+        return xyzs
+    
+def deriv_change_mat(xyz, pos_bl, a):
+    x0, y0, z0 = xyz
+    r0, theta0, phi0 = pos_bl
+    
+    return np.array([
+                    [r0*x0/(r0*r0 + a*a), -x0*np.tan(theta0 - np.pi/2), -y0],
+                    [r0*y0/(r0*r0 + a*a), -y0*np.tan(theta0 - np.pi/2), x0],
+                    [z0/r0, -r0*np.sin(theta0), 0]
+                    ])

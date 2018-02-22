@@ -4,14 +4,17 @@ import scipy.optimize as spo
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-from utils import maxima, minima, xyz_to_bl
-from deriv_funcs_massive import deriv, q, metric
+from utils import maxima, minima, xyz_to_bl, bl_to_xyz, deriv_change_mat
+from deriv_funcs_massive import deriv, q, metric, inv_metric
 from deriv_funcs_light import E_f, rho, Delta, pomega, ray0_b_from_pos0_n0
 from deriv_funcs_light import deriv as deriv_l
 from deriv_funcs_light import metric as metric_l
+from deriv_funcs_light import inv_metric as inv_metric_l
 
-SAVE = 0
-PLOT = 1
+# conda install -c jsturdy scikits.odes
+
+SAVE = False
+PLOT = True
 
 nt = 100000
 # TODO: have more points near periapsis
@@ -120,54 +123,43 @@ v_bh = bh_from_obs @ obs_from_orb @ v_orb
 #for i in range(50):
 #        test_ellipse[i,0] = sma * (np.cos(test_ea[i]) - ecc)
 #        test_ellipse[i,1] = sma * np.sqrt(1-ecc*ecc) * np.sin(test_ea[i])
-#        
+#
 #        test_ellipse_obs[i,:] = obs_from_orb @ test_ellipse[i,:]
-        
+
 
 #x_obs = x_orb
 #v_obs = v_orb
 
 # find Boyer Lindquist position
-x0 = x_bh[0]
-y0 = x_bh[1]
-z0 = x_bh[2]
+pos_bl = xyz_to_bl(x_bh, a)
 
-phi0 = np.arctan2(y0,x0)
-
-a_xyz = a*a-x0*x0-y0*y0-z0*z0
-r0 = np.sqrt(-0.5*a_xyz + 0.5*np.sqrt(a_xyz*a_xyz + 4*a*a*z0*z0))
-
-theta0 = np.arccos(z0/r0)
+r0, theta0, phi0 = pos_bl
+t0 = 0
 
 # verified - change back to get starting point
 # x = np.sqrt(r0*r0 + a*a)*np.sin(theta0)*np.cos(phi0)
 # y = np.sqrt(r0*r0 + a*a)*np.sin(theta0)*np.sin(phi0)
 # z = r0*np.cos(theta0)
 
-t0 = 0
 
 # we need contravariant 4-momentum (= 4-velocity, as m=1)
 # which is d/dtau of t,r,theta,phi
 
 # first find d/dt of t,r,theta,phi
-_u_dt = np.zeros(4)
+_x_dt = np.zeros(4)
 
 # v_obs is d/dt of x,y,z
 
-mat = np.array([
-        [r0*x0/(r0*r0 + a*a), -x0*np.tan(theta0 - np.pi/2), -y0],
-        [r0*y0/(r0*r0 + a*a), -y0*np.tan(theta0 - np.pi/2), x0],
-        [z0/r0, -r0*np.sin(theta0), 0]
-        ])
+mat = deriv_change_mat(x_bh, pos_bl, a)
 
-_u_dt[0] = 1
-_u_dt[1:4] = np.linalg.solve(mat, v_bh)
+_x_dt[0] = 1
+_x_dt[1:4] = np.linalg.solve(mat, v_bh)
 
 # change to proper time derivative
 metric0 = metric(np.array([0, r0, theta0, 0, 0, 0]), a) # only depends on r, theta
-dt_dtau = 1/np.sqrt(-(metric0 @ _u_dt) @ _u_dt)
+dt_dtau = 1/np.sqrt(-(metric0 @ _x_dt) @ _x_dt)
 
-_p = dt_dtau * _u_dt
+_p = dt_dtau * _x_dt
 
 # multiply by metric for covariant 4-momentum
 p_cov = metric0 @ _p
@@ -192,11 +184,7 @@ orbit_xyz = np.zeros((nt + 1, 3))
 
 orbit = spi.odeint(deriv, orbit0, zeta, (a,E,b,_q), atol = 1e-12)
 
-orbit_xyz[:, 0] = np.sqrt(orbit[:, 1]**2 + a * a) * \
-    np.sin(orbit[:, 2]) * np.cos(orbit[:, 3])
-orbit_xyz[:, 1] = np.sqrt(orbit[:, 1]**2 + a * a) * \
-    np.sin(orbit[:, 2]) * np.sin(orbit[:, 3])
-orbit_xyz[:, 2] = orbit[:, 1] * np.cos(orbit[:, 2])
+orbit_xyz = bl_to_xyz(orbit[:, 1:4], a)
 
 # transform back into obs and orb frames
 orbit_obs = np.zeros((nt + 1, 3))
@@ -228,125 +216,276 @@ print("Precession per Orbit:", deltaphase)
 thdeltaphase = 6 * np.pi / (sma * (1 - ecc*ecc))
 print("Theoretical Value (no spin, small angle):", thdeltaphase)
 
-# minimum distance to pos from ray originating at (x,y,infinity)
-# i.e. rays from Earth
-def minimum_distance(x, y, pos, a, nt):
-    # initial position(x0,y0,z0) in obs frame
-    z_inf = 100000 # some large number compared to r_s/2
-    
-    xyz0 = bh_from_obs @ np.array([x,y,z_inf])
-    x0, y0, z0 = xyz0
-    
-    # initial position and direction of ray
+def cast_ray(xyz0, n0, zeta, a):
+    # initial position of ray in BL coords
     pos0 = xyz_to_bl(xyz0, a)
-    r0, theta0, phi0 = pos0
-    
-    # rays coming to Earth from star
-    _v0 = bh_from_obs @ np.array([0, 0, 1])
-    
-    mat = np.array([
-            [r0*x0/(r0*r0 + a*a), -x0*np.tan(theta0 - np.pi/2), -y0],
-            [r0*y0/(r0*r0 + a*a), -y0*np.tan(theta0 - np.pi/2), x0],
-            [z0/r0, -r0*np.sin(theta0), 0]
-            ])
-    
+
+    mat = deriv_change_mat(xyz0, pos0, a)
+
     # initial [r, theta, phi, pr, pt]
     ray0 = np.concatenate((pos0, np.zeros(2)))
-    
+
     metric0 = metric_l(ray0, a)
-    
+
     _p = np.zeros(4)
-    try:
-        _p[1:4] = np.linalg.solve(mat, _v0)
-    except:
-        print(mat)
-    
+
+    _p[1:4] = np.linalg.solve(mat, n0)
+
     # from definition of energy E = -p^a u_a
-    _p[0] = (-1 - _p[2] * metric0[0, 2])/metric0[0,0]
-    
+    _p[0] = (-1 - _p[3] * metric0[0, 3])/metric0[0,0]
+
     _p_cov = metric0 @ _p
-    
+
     ray0[3:5] = _p_cov[1:3]
     b = _p_cov[3]
-    
-    _zeta = np.linspace(0, -1.2*z_inf, nt + 1)
-    
-    ray = spi.odeint(deriv_l, ray0, _zeta, (a,b), atol = 1e-10)
-    
-    ray_xyz = np.zeros((nt + 1, 3))
-    
-    ray_xyz[:, 0] = np.sqrt(ray[:, 0]*ray[:, 0] + a * a) * \
-        np.sin(ray[:, 1]) * np.cos(ray[:, 2])
-    ray_xyz[:, 1] = np.sqrt(ray[:, 0]*ray[:, 0] + a * a) * \
-        np.sin(ray[:, 1]) * np.sin(ray[:, 2])
-    ray_xyz[:, 2] = ray[:, 0] * np.cos(ray[:, 1])
-    
-    dist_sqr_min = 2*z_inf*z_inf # further than possible start
-    for i in range(nt + 1):
-        ray_obs = obs_from_bh @ ray_xyz[i]
-        disp = ray_obs - pos
+
+    return spi.odeint(deriv_l, ray0, zeta, (a,b), rtol = 1e-10)
+
+# returns ray trajectory, redshift f/f_e
+# f = doppl * grav * f_emitted
+def cast_ray_freqshift(xyz0, n0, zeta, star_vel_bh, a):
+    # initial position of ray in BL coords
+    pos0 = xyz_to_bl(xyz0, a)
+
+    mat = deriv_change_mat(xyz0, pos0, a)
+
+    # initial [r, theta, phi, pr, pt]
+    ray0 = np.concatenate((pos0, np.zeros(2)))
+
+    metric0 = metric_l(ray0, a)
+
+    _p = np.zeros(4)
+
+    _p[1:4] = np.linalg.solve(mat, n0)
+
+    # from definition of energy E = -p^a u_a
+    _p[0] = (-1 - _p[3] * metric0[0, 3])/metric0[0,0]
+
+    _p_cov = metric0 @ _p
+
+    ray0[3:5] = _p_cov[1:3]
+    b = _p_cov[3]
+
+    ray = spi.odeint(deriv_l, ray0, zeta, (a,b), rtol = 1e-10)
+
+    # find redshift
+
+    # fully GR
+
+    # metric at emission
+    metric1 = metric_l(ray[-1], a)
+    inv_metric1 = inv_metric_l(ray[-1], a)
+    # covariant four-momentum at emission
+    p_cov1 = np.array([-1, ray[-1, 3], ray[-1, 4], b])
+    p1 = inv_metric1 @ p_cov1
+
+    mat1 = deriv_change_mat(bl_to_xyz(ray[-1,0:3], a), ray[-1,0:3], a)
+
+    # find ray direction at emission
+    # cartesian dx/dt
+    n1 = mat1 @ p1[1:4]
+    # (should be normalised anyway)
+    n1 = n1 / np.linalg.norm(n1)
+
+    # observer dx/dt
+    # project star velocity onto ray direction
+    # observer moves with star
+    u1_dt_xyz = np.concatenate(([1], (star_vel_bh @ n1) * n1))
+
+    u1_dt = np.ones(4)
+    u1_dt[1:4] = np.linalg.solve(mat1, u1_dt_xyz[1:4])
+    # to change dx/dt to 4-velocity
+    dt_dtau1 = 1/np.sqrt(-(metric1 @ u1_dt) @ u1_dt)
+    u1 = dt_dtau1 * u1_dt
+
+    # energy at emission
+    E1 = - p_cov1 @ u1
+
+    # same for observer
+    # trivial when four-velocity of observer is time-only
+    E2 = 1/np.sqrt(-metric0[0,0])
+
+    freqshift_full = E2/E1
+
+    # grav plus SR doppler
+    # (for verification - should be very close if not the same)
+    _grav = np.sqrt(-metric1[0,0])/np.sqrt(-metric0[0,0])
+    beta = star_vel_bh @ n1 # radial veloctiy
+    _doppler = np.sqrt((1 + beta)/(1 - beta))
+    freqshift_full_alt = _doppler * _grav
+    print(n1, star_vel_bh)
+    print(u1_dt_xyz, beta)
+    print(freqshift_full, freqshift_full_alt, _doppler, _grav)
+
+    return freqshift_full
+
+def cast_earth_ray_freqshift(x, y, zeta_end, star_vel_bh, a):
+    # some large number compared to r_s/2, and closest distance of star to Earth
+    z_inf = 1e7
+
+    # initial position(x0,y0,z0) in obs frame
+    xyz0 = bh_from_obs @ np.array([x,y,z_inf])
+
+    # rays coming to Earth from star
+    n0 = bh_from_obs @ np.array([0, 0, 1])
+
+    # only need start and end points
+    zeta = np.array([0, zeta_end])
+
+    return cast_ray_freqshift(xyz0, n0, zeta, star_vel_bh, a)
+
+
+def cast_earth_ray(x, y, pos_bh, nt, a):
+    # some large number compared to r_s/2, and closest distance of star to Earth
+    z_inf = 1e7
+
+    # initial position(x0,y0,z0) in obs frame
+    xyz0 = bh_from_obs @ np.array([x,y,z_inf])
+
+    # rays coming to Earth from star
+    n0 = bh_from_obs @ np.array([0, 0, 1])
+
+    # time taken by ray travelling to star along straight line
+    # in units of 1/2 r_s / c
+    str_dist = np.sqrt((pos_bh - xyz0) @ (pos_bh - xyz0))
+
+    _zeta_0 = np.zeros(1)
+    _zeta_1 = np.linspace(-str_dist+1, -str_dist-1, nt + 1)
+    zeta = np.concatenate((_zeta_0, _zeta_1))
+
+    return cast_ray(xyz0, n0, zeta, a), zeta
+
+# minimum distance to pos from ray originating at (x,y,infinity)
+# i.e. rays from Earth
+def minimum_distance_sqr(x, y, pos, nt, a):
+    pos_bh = bh_from_obs @ pos
+
+    ray, _ = cast_earth_ray(x, y, pos_bh, nt, a)
+
+    ray_xyz = bl_to_xyz(ray[:, 0:3], a)
+
+    dist_sqr_min = 1e50 # further than possible start
+    for i in range(len(ray)):
+        disp = ray_xyz[i] - pos_bh
         dist_sqr = disp @ disp
         if dist_sqr < dist_sqr_min:
             dist_sqr_min = dist_sqr
-    
-    return np.sqrt(dist_sqr_min)
+
+    return dist_sqr_min
+
+def minimum_distance_zeta_end(x, y, pos, nt, a):
+    pos_bh = bh_from_obs @ pos
+
+    ray, zeta = cast_earth_ray(x, y, pos_bh, nt, a)
+
+    ray_xyz = bl_to_xyz(ray[:, 0:3], a)
+
+    dist_sqr_min = 1e50 # further than possible start
+    i_min = len(ray) + 1
+    for i in range(len(ray)):
+        disp = ray_xyz[i] - pos_bh
+        dist_sqr = disp @ disp
+        if dist_sqr < dist_sqr_min:
+            dist_sqr_min = dist_sqr
+            i_min = i
+
+    return zeta[i_min]
+
+# returns an array of lensed positions and redshifts f/f_em
+# (note that the doppler and gravitational shifts are not entirely separable,
+# as the lensing means the velocity is not actually projected radially
+# when calculating the doppler shift)
+# TODO: time delays from path length differences (probably negligible?)
+def lensed_pos_and_freqshift(orbit, orbit_E, orbit_b, a):
+    xyzs_bh = bl_to_xyz(orbit[:, 1:4], a)
+
+    pos_arr = np.zeros((len(orbit), 2)) # lensed x,y
+    fs = np.zeros(len(orbit)) # redshift
+    for i in range(len(orbit)):
+        print(i)
+        xyz_obs = obs_from_bh @ xyzs_bh[i]
+
+        min_dist_sqr_f = lambda xs: minimum_distance_sqr(xs[0], xs[1], xyz_obs, 256, a)
+        res = spo.minimize(min_dist_sqr_f,
+                           xyz_obs[:2],
+                           method='BFGS',
+                           options={'gtol': 1e-8, 'eps' : 1e-4})
+
+        pos_arr[i, :] = res.x
+        x, y = res.x
+
+        # zeta needed to take ray to star
+        zeta_end = minimum_distance_zeta_end(x, y, xyz_obs, 256, a)
+
+        inv_metric_here = inv_metric(orbit[i], a)
+        star_p = inv_metric_here @ np.array([-orbit_E, orbit[i, 4], orbit[i, 5], b])
+        star_vel_bh = deriv_change_mat(xyzs_bh[i], orbit[i, 1:4], a) @ star_p[1:4]
+
+        fs[i] = cast_earth_ray_freqshift(x, y, zeta_end, star_vel_bh, a)
+
+    return pos_arr, fs
+
 
 # find distance of rays to periapsis
 
-peri_obs = orbit_obs[imins][0]
+#peri_obs = orbit_obs[imins][0]
 
-# takes a long time; adjust nx, ny to speed up
-nx = 25
-ny = 25
-xspace = np.linspace(-2231, -2229, nx)
-yspace = np.linspace(387, 389, ny)
+# takes a long time; adjust to speed up
+#nx = 16
+#ny = nx
 
-min_dist = np.zeros((ny,nx))
+#width = 0.2
+#xspace = np.linspace(peri_obs[0]-width, peri_obs[0]+width, nx)
+#yspace = np.linspace(peri_obs[1]-width, peri_obs[1]+width, ny)
+#
+#min_dist = np.zeros((ny,nx))
 
-print('Closest Ray: ', np.min(min_dist))
+#for i in range(nx):
+#    for j in range(nx):
+#        _x = xspace[i]
+#        _y = yspace[j]
+#        min_dist[j, i] = np.sqrt(minimum_distance_sqr(_x, _y, peri_obs, 1024, a))
+#        if (i+1) % 4 == 0 and j==0:
+#            print(i+1)
 
-for i in range(nx):
-    for j in range(nx):
-        _x = xspace[i]
-        _y = yspace[j]
-        min_dist[j, i] = minimum_distance(_x, _y, peri_obs, a, 10000)
-        print(i, j)
+sub_orbit = orbit[::(nt+1)//25]
+sub_t = sub_orbit[:, 0]
 
-# minimise min_dist function to find deflection
-min_dist_f = lambda xs: minimum_distance(xs[0], xs[1], peri_obs, a, 10000)
-res = spo.minimize(min_dist_f,
-                   x0=peri_obs[:2])
+lensed_xy, freqshift = lensed_pos_and_freqshift(sub_orbit, E, b, a)
 
-deflec = res.x - peri_obs[:2]
+unlensed_bh = bl_to_xyz(sub_orbit[:, 1:4], a)
+unlensed_obs = np.zeros_like(unlensed_bh)
+for i in range(len(unlensed_bh)):
+    unlensed_obs[i] = obs_from_bh @ unlensed_bh[i]
+
+deflec = np.linalg.norm(lensed_xy - unlensed_obs[:,:2], axis=1)
 to_arcsec = half_rs / (1000 * R_0 * AU)
-deflec *= to_arcsec # ~ 0.8 micro arcseconds
-print('Deflection Angle at Periapsis: ', deflec, ' micro as')
 
 if PLOT:
     plt.close('all')
-    
+
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     ax.scatter([0],[0])
     ax.plot(orbit_obs[:, 0], orbit_obs[:, 1], zs=orbit_obs[:, 2])
-    
-#    check orbit is close to elliptical fit
+
+    # check orbit is close to elliptical fit
 #    ax.plot(test_ellipse_obs[:, 0], test_ellipse_obs[:, 1], zs=test_ellipse_obs[:, 2])
 #    check orbit is 'flat' after inverse transform
 #    ax.plot(orbit_xyplane[:, 0], orbit_xyplane[:, 1], zs=orbit_xyplane[:, 2])
-    
-#    check spin transformation
+
+    # check spin transformation
     _s = np.array([0,0,-10000])
     s = obs_from_bh @ _s
-    
+
     ax.plot([0,s[0]], [0,s[1]], zs=[0,s[2]])
-    
+
     # plot in orbital plane
     plt.figure(figsize=(8,8))
     plt.plot(orbit_orb[:, 0], orbit_orb[:, 1], 'k', linewidth=0.5)
     plt.scatter([0],[0], c='k', marker='x')
     plt.title("r_0 = {}, L = {}, E = {}".format(r0,b,E))
-    
+
     # view from Earth's sky
     # (west, north)
     plt.figure(figsize=(8,8))
@@ -355,13 +494,24 @@ if PLOT:
     plt.ylabel("delta") # declination
     plt.scatter([0],[0], c='k', marker='x')
     plt.title("r_0 = {}, L = {}, E = {}".format(r0,b,E))
-    
+
     # distance of rays to periapsis
-    plt.figure(figsize=(8,8))
-    cs = plt.contourf(xspace*to_arcsec*1e6, yspace*to_arcsec*1e6, min_dist,
-                      100, cmap='viridis')
-    plt.colorbar(cs, orientation='vertical')
-    
-    plt.scatter(peri_obs[0]*to_arcsec*1e6, peri_obs[1]*to_arcsec*1e6, marker='x')
-    
+#    plt.figure(figsize=(8,8))
+#    cs = plt.contourf(xspace*to_arcsec*1e6, yspace*to_arcsec*1e6, min_dist,
+#                      50, cmap='viridis')
+#    plt.colorbar(cs, orientation='vertical')
+#
+#    plt.scatter(peri_obs_muas[0], peri_obs_muas[1], c='w', marker='x')
+#    plt.scatter(peri_obs_muas[0] + deflec_muas[0], peri_obs_muas[1] + deflec_muas[1], c='w', marker='o')
+
+    fig, ax1 = plt.subplots()
+    ax1.set_ylabel("Deflection Angle / μas", color='b')
+    ax1.tick_params(axis='y', labelcolor='b')
+    ax1.plot(sub_t, deflec*to_arcsec*1e6, color='b')
+
+    ax2 = ax1.twinx()
+    ax2.set_ylabel("f / f_e", color='r')
+    ax2.tick_params(axis='y', labelcolor='r')
+    ax2.plot(sub_t, freqshift, color='r')
+
     plt.show()

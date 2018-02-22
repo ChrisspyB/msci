@@ -128,6 +128,7 @@ def deriv(y, zeta, a, b):
     
     return np.array([dr, dtheta, dphi, dp_r, dp_theta])
 
+# use this carefully, coordinate system of n0 is not that of pos0
 def ray0_b_from_pos0_n0(pos0, n0, a):
     ray0 = np.concatenate((pos0, np.zeros(2)))
     ray0[3] = n0[0] * E_f(ray0, n0[2], a) * rho(ray0, a) / math.sqrt(Delta(ray0, a))
