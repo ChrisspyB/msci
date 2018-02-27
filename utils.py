@@ -84,3 +84,14 @@ def deriv_change_mat(xyz, pos_bl, a):
                     [r0*y0/(r0*r0 + a*a), -y0*np.tan(theta0 - np.pi/2), x0],
                     [z0/r0, -r0*np.sin(theta0), 0]
                     ])
+
+def deriv_xyz_to_rtp(xyz,a):
+    x, y, z = xyz
+    r, t, p = xyz_to_bl(xyz,a)
+
+    foo = (z*z + a*a)/(r**4*np.sin(t)*np.cos(t))
+    return np.array([
+                     [x/r,y/r,z/r],
+                     [x*foo,y*foo,(z*z/r**3 -1/r)/np.sin(t)],
+                     [np.cos(p)**2 *(-y)/(x*x),np.cos(p)**2 /x,0]
+                     ])

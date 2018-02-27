@@ -4,7 +4,7 @@ import scipy.optimize as spo
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-from utils import maxima, minima, xyz_to_bl, bl_to_xyz, deriv_change_mat
+from utils import maxima, minima, xyz_to_bl, bl_to_xyz, deriv_change_mat,deriv_xyz_to_rtp
 from deriv_funcs_massive import deriv, q, metric, inv_metric
 from deriv_funcs_light import E_f, rho, Delta, pomega, ray0_b_from_pos0_n0
 from deriv_funcs_light import deriv as deriv_l
@@ -221,7 +221,7 @@ def cast_ray(xyz0, n0, zeta, a):
     pos0 = xyz_to_bl(xyz0, a)
 
     mat = deriv_change_mat(xyz0, pos0, a)
-
+    M = deriv_xyz_to_rtp(xyz0,a)
     # initial [r, theta, phi, pr, pt]
     ray0 = np.concatenate((pos0, np.zeros(2)))
 
@@ -229,7 +229,9 @@ def cast_ray(xyz0, n0, zeta, a):
 
     _p = np.zeros(4)
 
-    _p[1:4] = np.linalg.solve(mat, n0)
+    # _p[1:4] = np.linalg.solve(mat, n0)
+    
+    _p[1:4] = M @ n0
 
     # from definition of energy E = -p^a u_a
     _p[0] = (-1 - _p[3] * metric0[0, 3])/metric0[0,0]
@@ -313,9 +315,6 @@ def cast_ray_freqshift(xyz0, n0, zeta, star_vel_bh, a):
     beta = star_vel_bh @ n1 # radial veloctiy
     _doppler = np.sqrt((1 + beta)/(1 - beta))
     freqshift_full_alt = _doppler * _grav
-    print(n1, star_vel_bh)
-    print(u1_dt_xyz, beta)
-    print(freqshift_full, freqshift_full_alt, _doppler, _grav)
 
     return freqshift_full
 
