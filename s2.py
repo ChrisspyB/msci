@@ -2,17 +2,17 @@ import numpy as np
 import scipy.integrate as spi
 import scipy.optimize as spo
 import matplotlib.pyplot as plt
+import warnings
+
 from mpl_toolkits.mplot3d import Axes3D
 
-from utils import maxima, minima, xyz_to_bl, bl_to_xyz, \
-                                  deriv_rtp_to_xyz,deriv_xyz_to_rtp
 from deriv_funcs_massive import deriv, q, metric, inv_metric
 from deriv_funcs_light import E_f, rho, Delta, pomega, ray0_b_from_pos0_n0
 from deriv_funcs_light import deriv as deriv_l
 from deriv_funcs_light import metric as metric_l
 from deriv_funcs_light import inv_metric as inv_metric_l
-
-# conda install -c jsturdy scikits.odes
+from utils import maxima, minima, xyz_to_bl, bl_to_xyz, \
+                                  deriv_rtp_to_xyz, deriv_xyz_to_rtp
 
 SAVE = False
 PLOT = True
@@ -23,7 +23,7 @@ nt = 100000
 # precession angle well
 # this should be easy, since t is barely different from proper time (zeta)
 
-a = 0.0 # black hole angular momentum
+a = 0.99 # black hole angular momentum
 
 # black hole mass
 M = 4.28e6 # solar masses
@@ -61,7 +61,7 @@ sma *= from_arcsec
 # sma *= 1/3600 * np.pi/180 * 1000 *  R_0 * 648000/np.pi * AU / half_rs
 period *= YEAR * SOL / half_rs
 
-T = 1.2 * period # units of 1/2 r_s / c
+T = 1.1 * period # units of 1/2 r_s / c
 
 # cartesian coordinates of apoapsis in orbital plane
 ecc_anom = np.pi # 0 at periapsis, pi at apoapsis
@@ -97,10 +97,12 @@ orb_from_obs = obs_from_orb.transpose() # property of orthogonal matrix
 
 # spin orientation in observer frame
 # (using same parameters as for orbit)
-#spin_phi = -0.3 # anti clockwise from x in x-y plane
-#spin_theta = np.pi - incl - 0.2 # angle made to z axis
-spin_phi = 0 # anti clockwise from x in x-y plane
-spin_theta = 0 # angle made to z axis
+spin_phi = -0.3 # anti clockwise from x in x-y plane
+spin_theta = np.pi - incl - 0.2 # angle made to z axis
+#spin_phi = 0
+#spin_theta = 0
+#spin_phi = -0.2
+#spin_theta = 2.1
 
 R_spin_phi = np.array([[np.cos(spin_phi), np.sin(spin_phi), 0],
                       [-np.sin(spin_phi), np.cos(spin_phi), 0],
@@ -244,8 +246,9 @@ def cast_ray(xyz0, n0, zeta, a):
 
     ray0[3:5] = _p_cov[1:3]
     b = _p_cov[3]
-
-    return spi.odeint(deriv_l, ray0, zeta, (a,b), rtol=1e-10)
+    
+    return spi.odeint(deriv_l, ray0, zeta, (a,b))
+        
 
 # returns ray trajectory, redshift f/f_e
 # f = doppl * grav * f_emitted
@@ -272,7 +275,7 @@ def cast_ray_freqshift(xyz0, n0, zeta, star_vel_bh, a):
     ray0[3:5] = _p_cov[1:3]
     b = _p_cov[3]
 
-    ray = spi.odeint(deriv_l, ray0, zeta, (a,b), rtol=1e-10)
+    ray = spi.odeint(deriv_l, ray0, zeta, (a,b))
 
     # find redshift
 
@@ -321,7 +324,7 @@ def cast_ray_freqshift(xyz0, n0, zeta, star_vel_bh, a):
     _doppler = np.sqrt((1 + beta)/(1 - beta))
     freqshift_full_alt = _doppler * _grav
 
-    return freqshift_full
+    return freqshift_full, _doppler
 
 def cast_earth_ray_freqshift(x, y, zeta_end, star_vel_bh, a):
     # some large number compared to r_s/2, and closest distance of star to Earth
@@ -404,7 +407,8 @@ def lensed_pos_and_freqshift(orbit, orbit_E, orbit_b, a):
     xyzs_bh = bl_to_xyz(orbit[:, 1:4], a)
 
     pos_arr = np.zeros((len(orbit), 2)) # lensed x,y
-    fs = np.zeros(len(orbit)) # redshift
+    fs = np.zeros(len(orbit)) # full freq shift
+    dopp = np.zeros(len(orbit)) # doppler only
     for i in range(len(orbit)):
         print(i)
         xyz_obs = obs_from_bh @ xyzs_bh[i]
@@ -412,8 +416,8 @@ def lensed_pos_and_freqshift(orbit, orbit_E, orbit_b, a):
         min_dist_sqr_f = lambda xs: minimum_distance_sqr(xs[0], xs[1], xyz_obs, 256, a)
         res = spo.minimize(min_dist_sqr_f,
                            xyz_obs[:2],
-                           method='BFGS',
-                           options={'gtol': 1e-8, 'eps' : 1e-4})
+                           method='Nelder-Mead',
+                           options={'fatol':1e-6,'xatol':1e-6})
 
         pos_arr[i, :] = res.x
         x, y = res.x
@@ -425,15 +429,15 @@ def lensed_pos_and_freqshift(orbit, orbit_E, orbit_b, a):
         star_p = inv_metric_here @ np.array([-orbit_E, orbit[i, 4], orbit[i, 5], b])
         star_vel_bh = deriv_rtp_to_xyz(xyzs_bh[i], orbit[i, 1:4], a) @ star_p[1:4]
 
-        fs[i] = cast_earth_ray_freqshift(x, y, zeta_end, star_vel_bh, a)
+        fs[i], dopp[i] = cast_earth_ray_freqshift(x, y, zeta_end, star_vel_bh, a)
 
-    return pos_arr, fs
+    return pos_arr, fs, dopp
 
 
-sub_orbit = orbit[::(nt+1)//100]
+sub_orbit = orbit[::(nt+1)//128]
 sub_t = sub_orbit[:, 0] * half_rs / (YEAR * SOL)
 
-lensed_xy, freqshift = lensed_pos_and_freqshift(sub_orbit, E, b, a)
+lensed_xy, freqshift, doppler = lensed_pos_and_freqshift(sub_orbit, E, b, a)
 
 unlensed_bh = bl_to_xyz(sub_orbit[:, 1:4], a)
 unlensed_obs = np.zeros_like(unlensed_bh)
@@ -442,16 +446,16 @@ for i in range(len(unlensed_bh)):
 
 deflec = np.linalg.norm(lensed_xy - unlensed_obs[:,:2], axis=1)
 
-## find distance of rays to periapsis
-#
+# find distance of rays to periapsis
+
 ##peri_obs = orbit_obs[imins][0]
-#peri_obs = obs_from_bh @ bl_to_xyz(sub_orbit[10, 1:4], a)
+#peri_obs = obs_from_bh @ bl_to_xyz(sub_orbit[30, 1:4], a)
 #
 ## takes a long time; adjust to speed up
-#nx = 12
+#nx = 32
 #ny = nx
 #
-#width = 4
+#width = 10
 #xspace = np.linspace(peri_obs[0]-width, peri_obs[0]+width, nx)
 #yspace = np.linspace(peri_obs[1]-width, peri_obs[1]+width, ny)
 #
@@ -473,8 +477,8 @@ deflec = np.linalg.norm(lensed_xy - unlensed_obs[:,:2], axis=1)
 #min_dist_sqr_f = lambda xs: minimum_distance_sqr(xs[0], xs[1], peri_obs, 1024, a)
 #res = spo.minimize(min_dist_sqr_f,
 #                   peri_obs[:2],
-#                   method='BFGS',
-#                   options={'gtol': 1e-8, 'eps' : 1e-4})
+#                   method='Nelder-Mead',
+#                           options={'fatol':1e-5,'xatol':1e-5})
 #lensed_peri = res.x
 #print('Closest Ray: ', np.sqrt(res.fun))
 #
@@ -521,36 +525,42 @@ if PLOT:
     # (west, north)
     plt.figure(figsize=(8,8))
     plt.plot(-orbit_obs[:, 1]*to_arcsec, orbit_obs[:, 0]*to_arcsec, 'k', linewidth=0.5)
-    plt.xlabel("-alpha") # - right ascension
-    plt.ylabel("delta") # declination
+    plt.xlabel("-α (\'\')") # - right ascension
+    plt.ylabel("δ (\'\')") # declination
     plt.scatter([0],[0], c='k', marker='x')
-    plt.title("r_0 = {}, L = {}, E = {}".format(r0,b,E))
+    #plt.title("r_0 = {}, L = {}, E = {}".format(r0,b,E))
 
-#     distance of rays to periapsis
-    plt.figure(figsize=(8,8))
-    cs = plt.contourf(xspace*to_arcsec*1e6, yspace*to_arcsec*1e6, min_dist,
-                      50, cmap='viridis')
-    plt.colorbar(cs, orientation='vertical')
-
-    plt.scatter(peri_obs[0]*1e6*to_arcsec, peri_obs[1]*1e6*to_arcsec,
-                c='w', marker='x')
-    plt.scatter(lensed_peri[0]*1e6*to_arcsec, lensed_peri[1]*1e6*to_arcsec,
-                c='w', marker='o')
-
+    # distance of rays to periapsis
+#    plt.figure(figsize=(8,8))
+#    cs = plt.contourf(xspace*to_arcsec*1e6, yspace*to_arcsec*1e6, min_dist,
+#                      50, cmap='viridis')
+#    plt.colorbar(cs, orientation='vertical')
+#    
+#    plt.scatter(peri_obs[0]*1e6*to_arcsec, peri_obs[1]*1e6*to_arcsec,
+#                c='w', marker='x')
+#    plt.scatter(lensed_peri[0]*1e6*to_arcsec, lensed_peri[1]*1e6*to_arcsec,
+#                c='w', marker='o')
+#    plt.xlabel("-α (μas)") # - right ascension
+#    plt.ylabel("δ (μas)") # declination
+    
+    # lensing and redshift
     fig, ax1 = plt.subplots()
+    
+    for i in imins:
+        plt.axvline(t[i] * half_rs / (YEAR * SOL), color='k',
+                    linestyle='--', linewidth=1)
+        
+    for i in imaxs[1:]:
+        plt.axvline(t[i] * half_rs / (YEAR * SOL), color='k',
+                    linestyle=':', linewidth=1)
+    
     ax1.set_ylabel("Deflection Angle / μas", color='b')
     ax1.tick_params(axis='y', labelcolor='b')
     ax1.plot(sub_t, deflec*to_arcsec*1e6, color='b')
-
+    
     ax2 = ax1.twinx()
     ax2.set_ylabel("f / f_e", color='r')
     ax2.tick_params(axis='y', labelcolor='r')
     ax2.plot(sub_t, freqshift, color='r')
     
-    for i in imins:
-        plt.axvline(t[i] * half_rs / (YEAR * SOL), color='k', linestyle='--')
-        
-    for i in imaxs[1:]:
-        plt.axvline(t[i] * half_rs / (YEAR * SOL), color='k', linestyle=':')
-
     plt.show()
