@@ -20,7 +20,7 @@ x_dist = 1000000
 
 # [ray_0, ... , ray_n-1]
 # [r, theta, phi, p_r, p_theta, p_phi]
-rays_0 = np.zeros((n_rays, 6))
+rays_0 = np.zeros((n_rays, 5))
 
 # multiple camera positions (r, theta, phi)
 cam_pos = np.zeros((n_rays, 3))
@@ -41,24 +41,25 @@ n_0[:, 2] = -np.sin(cam_pos[:, 2])
 
 # initialise ray momenta and positions
 # Note: E_f doesnt depend on momentum
+
+b = np.zeros(n_rays)
 for i in range(n_rays):
-    y_0 = np.concatenate((cam_pos[i,:], np.zeros(3)))
+    y_0 = np.concatenate((cam_pos[i,:], np.zeros(2)))
     rays_0[i, 3] = n_0[i, 0] * \
         E_f(y_0, n_0[i, 2], a) * rho(y_0, a) / math.sqrt(Delta(y_0, a))
     rays_0[i, 4] = n_0[i, 1] * E_f(y_0, n_0[i, 2], a) * rho(y_0, a)
-    rays_0[i, 5] = n_0[i, 2] * \
-        E_f(y_0, n_0[i, 2], a) * pomega(y_0, a)  # = b (conserved)
+    b[i] = n_0[i, 2] * E_f(y_0, n_0[i, 2], a) * pomega(y_0, a)
 
 rays_0[:, 0:3] = cam_pos.copy()
 
 zeta = np.linspace(0, -2*x_dist, nt + 1)
 
-rays = np.zeros((n_rays, nt + 1, 6))
+rays = np.zeros((n_rays, nt + 1, 5))
 
 deflec = np.zeros(n_rays)
 # integrate momenta and positions
 for i in range(n_rays):
-    rays[i] = spi.odeint(deriv, rays_0[i], zeta, (a,))
+    rays[i] = spi.odeint(deriv, rays_0[i], zeta, (a,b[i]))
 
 rays_x = np.sqrt(rays[:,:, 0]**2 + a * a) * \
     np.sin(rays[:,:, 1]) * np.cos(rays[:,:, 2])
