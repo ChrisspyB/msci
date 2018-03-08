@@ -97,10 +97,10 @@ orb_from_obs = obs_from_orb.transpose() # property of orthogonal matrix
 
 # spin orientation in observer frame
 # (using same parameters as for orbit)
-spin_phi = -0.3 # anti clockwise from x in x-y plane
-spin_theta = np.pi - incl - 0.2 # angle made to z axis
-#spin_phi = 0
-#spin_theta = 0
+#spin_phi = -0.3 # anti clockwise from x in x-y plane
+#spin_theta = np.pi - incl - 0.2 # angle made to z axis
+spin_phi = 0
+spin_theta = 0
 #spin_phi = -0.2
 #spin_theta = 2.1
 
@@ -367,22 +367,6 @@ def cast_earth_ray(x, y, pos_bh, nt, a):
 def minimum_distance_sqr(x, y, pos, nt, a):
     pos_bh = bh_from_obs @ pos
 
-    ray, _ = cast_earth_ray(x, y, pos_bh, nt, a)
-
-    ray_xyz = bl_to_xyz(ray[:, 0:3], a)
-
-    dist_sqr_min = 1e50 # further than possible start
-    for i in range(len(ray)):
-        disp = ray_xyz[i] - pos_bh
-        dist_sqr = disp @ disp
-        if dist_sqr < dist_sqr_min:
-            dist_sqr_min = dist_sqr
-
-    return dist_sqr_min
-
-def minimum_distance_zeta_end(x, y, pos, nt, a):
-    pos_bh = bh_from_obs @ pos
-
     ray, zeta = cast_earth_ray(x, y, pos_bh, nt, a)
 
     ray_xyz = bl_to_xyz(ray[:, 0:3], a)
@@ -396,7 +380,7 @@ def minimum_distance_zeta_end(x, y, pos, nt, a):
             dist_sqr_min = dist_sqr
             i_min = i
 
-    return zeta[i_min]
+    return dist_sqr_min, zeta[i_min]
 
 # returns an array of lensed positions and redshifts f/f_em
 # (note that the doppler and gravitational shifts are not entirely separable,
@@ -404,40 +388,45 @@ def minimum_distance_zeta_end(x, y, pos, nt, a):
 # when calculating the doppler shift)
 # TODO: time delays from path length differences (probably negligible?)
 def lensed_pos_and_freqshift(orbit, orbit_E, orbit_b, a):
+    orbit_t = orbit[:, 0]
     xyzs_bh = bl_to_xyz(orbit[:, 1:4], a)
 
     pos_arr = np.zeros((len(orbit), 2)) # lensed x,y
     fs = np.zeros(len(orbit)) # full freq shift
     dopp = np.zeros(len(orbit)) # doppler only
+    arrival_time = np.zeros(len(orbit)) # time difference from first ray
+    
     for i in range(len(orbit)):
         print(i)
         xyz_obs = obs_from_bh @ xyzs_bh[i]
 
-        min_dist_sqr_f = lambda xs: minimum_distance_sqr(xs[0], xs[1], xyz_obs, 256, a)
+        min_dist_sqr_f = lambda xs: minimum_distance_sqr(xs[0], xs[1], xyz_obs, 256, a)[0]
         res = spo.minimize(min_dist_sqr_f,
                            xyz_obs[:2],
                            method='Nelder-Mead',
-                           options={'fatol':1e-6,'xatol':1e-6})
+                           options={'fatol':1e-8,'xatol':1e-8})
 
         pos_arr[i, :] = res.x
         x, y = res.x
 
         # zeta needed to take ray to star
-        zeta_end = minimum_distance_zeta_end(x, y, xyz_obs, 256, a)
+        zeta_end = minimum_distance_sqr(x, y, xyz_obs, 256, a)[1]
 
         inv_metric_here = inv_metric(orbit[i], a)
         star_p = inv_metric_here @ np.array([-orbit_E, orbit[i, 4], orbit[i, 5], b])
         star_vel_bh = deriv_rtp_to_xyz(xyzs_bh[i], orbit[i, 1:4], a) @ star_p[1:4]
 
         fs[i], dopp[i] = cast_earth_ray_freqshift(x, y, zeta_end, star_vel_bh, a)
-
-    return pos_arr, fs, dopp
+        arrival_time[i] = orbit_t[i] + zeta_end
+        
+    arrival_time = arrival_time - arrival_time[0]
+    return pos_arr, fs, dopp, arrival_time
 
 
 sub_orbit = orbit[::(nt+1)//128]
-sub_t = sub_orbit[:, 0] * half_rs / (YEAR * SOL)
+sub_t = sub_orbit[:, 0]
 
-lensed_xy, freqshift, doppler = lensed_pos_and_freqshift(sub_orbit, E, b, a)
+lensed_xy, freqshift, doppler, delayed_t = lensed_pos_and_freqshift(sub_orbit, E, b, a)
 
 unlensed_bh = bl_to_xyz(sub_orbit[:, 1:4], a)
 unlensed_obs = np.zeros_like(unlensed_bh)
@@ -445,6 +434,7 @@ for i in range(len(unlensed_bh)):
     unlensed_obs[i] = obs_from_bh @ unlensed_bh[i]
 
 deflec = np.linalg.norm(lensed_xy - unlensed_obs[:,:2], axis=1)
+delayed_t *=  half_rs / (YEAR * SOL)
 
 # find distance of rays to periapsis
 
@@ -465,7 +455,7 @@ deflec = np.linalg.norm(lensed_xy - unlensed_obs[:,:2], axis=1)
 #    for j in range(nx):
 #        _x = xspace[i]
 #        _y = yspace[j]
-#        min_dist[j, i] = np.sqrt(minimum_distance_sqr(_x, _y, peri_obs, 1024, a))
+#        min_dist[j, i] = np.sqrt(minimum_distance_sqr(_x, _y, peri_obs, 1024, a)[0])
 #        if j == 0 and i % 4 == 0:
 #            print(i)
 ##        import sys
@@ -474,11 +464,11 @@ deflec = np.linalg.norm(lensed_xy - unlensed_obs[:,:2], axis=1)
 ##        time.sleep(0.5)
 ##        print(i,j)
 #
-#min_dist_sqr_f = lambda xs: minimum_distance_sqr(xs[0], xs[1], peri_obs, 1024, a)
+#min_dist_sqr_f = lambda xs: minimum_distance_sqr(xs[0], xs[1], peri_obs, 1024, a)[0]
 #res = spo.minimize(min_dist_sqr_f,
 #                   peri_obs[:2],
 #                   method='Nelder-Mead',
-#                           options={'fatol':1e-5,'xatol':1e-5})
+#                           options={'fatol':1e-8,'xatol':1e-8})
 #lensed_peri = res.x
 #print('Closest Ray: ', np.sqrt(res.fun))
 #
@@ -556,11 +546,11 @@ if PLOT:
     
     ax1.set_ylabel("Deflection Angle / μas", color='b')
     ax1.tick_params(axis='y', labelcolor='b')
-    ax1.plot(sub_t, deflec*to_arcsec*1e6, color='b')
+    ax1.plot(delayed_t, deflec*to_arcsec*1e6, color='b')
     
     ax2 = ax1.twinx()
     ax2.set_ylabel("f / f_e", color='r')
     ax2.tick_params(axis='y', labelcolor='r')
-    ax2.plot(sub_t, freqshift, color='r')
+    ax2.plot(delayed_t, freqshift, color='r')
     
     plt.show()
