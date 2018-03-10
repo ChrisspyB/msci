@@ -2,7 +2,6 @@ import numpy as np
 import scipy.integrate as spi
 import scipy.optimize as spo
 import matplotlib.pyplot as plt
-import warnings
 
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -52,7 +51,7 @@ YEAR = 86400 * 365.25 # seconds
 SGP_SUN = 1.32712440018e20 # solar standard gravitational parameter / m^3 s^-2
 SOL = 299792458 # speed of light / ms^-1
 AU = 149597870700 # astronomical unit / m
-half_rs = SGP_SUN * M / (SOL*SOL) # 1/2 schawrzschild radius
+half_rs = SGP_SUN * M / (SOL*SOL) # 1/2 schawrzschild radius / m
 
 to_arcsec = half_rs / (1000 * R_0 * AU)
 from_arcsec = 1000 * R_0 * AU / half_rs
