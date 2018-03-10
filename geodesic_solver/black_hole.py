@@ -3,17 +3,34 @@ import numpy as np
 from .constants import *
 
 class BlackHole:
-    def __init__(self, a, M, R_0, v_r, incl, ):
+    def __init__(self, a, M, R_0, v_r, incl, spin_theta, spin_phi):
         """
         a -- angular momentum per unit mass in c=G=1 units - [0, 1]
         M -- mass (solar masses)
         R_0 -- distance to Earth (kPc)
         v_r -- radial velocity (km/s)
+        spin_theta -- polar spin angle (degrees)
+        spin_phi -- azimuthal spin angle (degrees)
         """
         
         half_rs = SGP_SUN * M / (SOL*SOL)
         to_arcsec = half_rs / (1000 * R_0 * AU)
         from_arcsec = 1000 * R_0 * AU / half_rs
+        
+        phi = spin_phi * np.pi/180
+        theta = spin_theta * np.pi/180
+        
+        R_spin_phi = np.array([[np.cos(phi), np.sin(phi), 0],
+                              [-np.sin(phi), np.cos(phi), 0],
+                              [0, 0, 1]])
+        
+        R_spin_theta = np.array([[np.cos(theta), 0, -np.sin(theta)],
+                                 [0, 1, 0],
+                                 [np.sin(theta), 0, np.cos(theta)]])
+        
+        # BH frame has spin in -z direction
+        self.__bh_from_obs = R_spin_theta @ R_spin_phi
+        self.__obs_from_bh = self.__bh_from_obs.transpose()
         
         self.__a = a
         self.__M = M
@@ -29,11 +46,11 @@ class BlackHole:
         
     def to_arcsec(self, dist):
         """Converts distance from natural units to arcseconds."""
-        return dist * self.__half_rs / (1000 * R_0 * AU)
+        return dist * self.__half_rs / (1000 * self.__R_0 * AU)
     
     def from_arcsec(self, dist):
         """Converts distance from arcseconds to natural units."""
-        return dist * 1000 * R_0 * AU / self.__half_rs
+        return dist * 1000 * self.__R_0 * AU / self.__half_rs
     
     def to_years(self, t):
         """Converts time from natural units to years."""
@@ -46,3 +63,11 @@ class BlackHole:
     def radial_velocity(self):
         """Radial velocity of black hole (natural units: v/c)."""
         return self.__v_r
+    
+    def bh_from_obs(self, vec):
+        """Transform a vector from observer frame to BH frame."""
+        return self.__bh_from_obs @ vec
+    
+    def obs_from_bh(self, vec):
+        """Transform a vector from BH frame to observer frame."""
+        return self.__obs_from_bh @ vec
