@@ -1,6 +1,6 @@
 import numpy as np
 
-from .constants import *
+from .constants import YEAR, SGP_SUN, SOL, AU
 
 class BlackHole:
     def __init__(self, a, M, R_0, v_r, incl, spin_theta, spin_phi):
@@ -44,6 +44,10 @@ class BlackHole:
         self.__to_arc = to_arcsec
         self.__from_arc = from_arcsec
         
+    @property
+    def a(self):
+        return self.__a
+        
     def to_arcsec(self, dist):
         """Converts distance from natural units to arcseconds."""
         return dist * self.__half_rs / (1000 * self.__R_0 * AU)
@@ -71,3 +75,90 @@ class BlackHole:
     def obs_from_bh(self, vec):
         """Transform a vector from BH frame to observer frame."""
         return self.__obs_from_bh @ vec
+    
+    def __xyz_to_rtp(self, pos):
+        x, y, z = pos
+        a = self.__a
+    
+        phi = np.arctan2(y,x)
+        a_xyz = a*a-x*x-y*y-z*z
+        r = np.sqrt(-0.5*a_xyz + 0.5*np.sqrt(a_xyz*a_xyz + 4*a*a*z*z))
+        theta = np.arccos(z/r)
+        
+        return np.array([r,theta,phi])
+
+    # vectorized
+    def xyz_to_rtp(self, xyzs):
+        """
+        Changes cartesian coords to BL.
+        """
+        if xyzs.ndim == 1:
+            return self.__xyz_to_bl(xyzs)
+        else:
+            assert(xyzs.shape == (len(xyzs), 3))
+            bl_pos = np.zeros((len(xyzs), 3))
+            for i in range(len(xyzs)):
+                bl_pos[i, :] = self.__xyz_to_bl(xyzs[i, :])
+            return bl_pos
+    
+    def __rtp_to_xyz(self, pos):
+        r, theta, phi = pos
+        a = self.__a
+        
+        x = np.sqrt(r*r + a * a) * np.sin(theta) * np.cos(phi)
+        y = np.sqrt(r*r + a * a) * np.sin(theta) * np.sin(phi)
+        z = r * np.cos(theta)
+        
+        return np.array([x,y,z])
+    
+    # vectorized
+    def rtp_to_xyz(self, bl_pos):
+        """
+        Changes BL coords to cartesian.
+        """
+        if bl_pos.ndim == 1:
+            return self.__bl_to_xyz(bl_pos)
+        else:
+            assert(bl_pos.shape == (len(bl_pos), 3))
+            
+            a = self.__a
+            
+            xyzs = np.zeros((len(bl_pos), 3))
+    
+            xyzs[:, 0] = np.sqrt(bl_pos[:, 0]*bl_pos[:, 0] + a * a) * \
+                np.sin(bl_pos[:, 1]) * np.cos(bl_pos[:, 2])
+            xyzs[:, 1] = np.sqrt(bl_pos[:, 0]*bl_pos[:, 0] + a * a) * \
+                np.sin(bl_pos[:, 1]) * np.sin(bl_pos[:, 2])
+            xyzs[:, 2] = bl_pos[:, 0] * np.cos(bl_pos[:, 1])
+    
+            return xyzs
+    
+    def deriv_rtp_to_xyz(self, xyz, rtp):
+        """
+        Returns matrix that changes derivatives of BL coords to cartesian.
+        """
+        x0, y0, z0 = xyz
+        r0, theta0, phi0 = rtp
+        a = self.__a
+        
+        return np.array([
+                        [r0*x0/(r0*r0 + a*a), -x0*np.tan(theta0 - np.pi/2), -y0],
+                        [r0*y0/(r0*r0 + a*a), -y0*np.tan(theta0 - np.pi/2), x0],
+                        [z0/r0, -r0*np.sin(theta0), 0]
+                        ])
+
+    def deriv_xyz_to_rtp(self, xyz, rtp):
+        """
+        Returns matrix that changes derivatives of cartesian coords to BL.
+        """
+        x, y, z = xyz
+        r, t, p = rtp
+        a = self.__a
+        
+        D = -np.tan(t - np.pi/2)/(r*r + a*a)
+        
+        return np.array([
+                        [x/r,y/r,z/r],
+                        np.array([x*D,y*D,(z*np.cos(t) - r)/(r*r*np.sin(t))]),
+                        [np.cos(p)*np.cos(p)*(-y)/(x*x),np.cos(p)*np.cos(p)/x,0]
+                        ])
