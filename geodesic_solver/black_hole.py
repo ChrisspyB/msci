@@ -117,7 +117,7 @@ class BlackHole:
         Changes BL coords to cartesian.
         """
         if bl_pos.ndim == 1:
-            return self.__bl_to_xyz(bl_pos)
+            return self.__rtp_to_xyz(bl_pos)
         else:
             assert(bl_pos.shape == (len(bl_pos), 3))
             
