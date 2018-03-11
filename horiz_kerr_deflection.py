@@ -1,8 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from geodesic_solver.black_hole import BlackHole
-from geodesic_solver.ray import Ray
+from geodesic_solver import BlackHole, Ray
 
 # -- Customise --
 PLOT = True
