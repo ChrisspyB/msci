@@ -93,12 +93,12 @@ class BlackHole:
         Changes cartesian coords to BL.
         """
         if xyzs.ndim == 1:
-            return self.__xyz_to_bl(xyzs)
+            return self.__xyz_to_rtp(xyzs)
         else:
             assert(xyzs.shape == (len(xyzs), 3))
             bl_pos = np.zeros((len(xyzs), 3))
             for i in range(len(xyzs)):
-                bl_pos[i, :] = self.__xyz_to_bl(xyzs[i, :])
+                bl_pos[i, :] = self.__xyz_to_rtp(xyzs[i, :])
             return bl_pos
     
     def __rtp_to_xyz(self, pos):

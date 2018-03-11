@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.integrate as spi
 
-from deriv_funcs_massive import deriv, metric, q
+from .deriv_funcs_massive import deriv, metric, q
 
 class Orbit:
     def __init__(self, bh, sma, ecc, incl, long_asc, arg_peri, period):
