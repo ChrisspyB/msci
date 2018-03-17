@@ -106,7 +106,6 @@ class Orbit:
             # these are conserved:
             # angular momentum (= r * p^phi for large r)
             b = p_phi
-            
             # Carter's constant
             _q = q(theta0, p_theta0, a, E, b)
             

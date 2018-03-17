@@ -30,12 +30,16 @@ class Ray:
     @property
     def z(self):
         return self.__z
+    
+    @property
+    def t(self):
+        return self.__t
 
     def __integrate(self, xyz0, n0, zeta):        
         a = self.__bh.a
 
         rtp0 = self.__bh.xyz_to_rtp(xyz0) 
-        ray0 = np.concatenate((rtp0, np.zeros(2))) # [r,theta,phi,pr,pt]
+        ray0 = np.concatenate((rtp0, np.zeros(2))) # [t,r,theta,phi,pr,pt]
 
         mat = self.__bh.deriv_xyz_to_rtp(xyz0, rtp0)
         metric0 = metric(ray0, a)
@@ -46,15 +50,16 @@ class Ray:
 
         _p_cov = metric0 @ _p
 
-        ray0[3:5] = _p_cov[1:3]
+        ray0[4:6] = _p_cov[1:3]
         b = _p_cov[3]
 
         ray = spi.odeint(deriv, ray0, zeta, (a,b))
         
-        self.__x = np.sqrt(ray[:, 0]**2 + a * a) * \
-            np.sin(ray[:, 1]) * np.cos(ray[:, 2])
+        self.__x = np.sqrt(ray[:, 1]**2 + a * a) * \
+            np.sin(ray[:, 2]) * np.cos(ray[:, 3])
         self.__y = np.sqrt(ray[:, 0]**2 + a * a) * \
-            np.sin(ray[:, 1]) * np.sin(ray[:, 2])
-        self.__z = ray[:, 0] * np.cos(ray[:, 1])
+            np.sin(ray[:, 2]) * np.sin(ray[:, 3])
+        self.__z = ray[:, 1] * np.cos(ray[:, 2])
+        self.__t = ray[:, 0]
         self.__ray = ray
         return

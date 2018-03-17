@@ -119,14 +119,16 @@ def deriv(y, zeta, a, b):
 
     cot = -math.tan(theta - math.pi / 2.0)
     aasincos = a * a * math.sin(theta) * math.cos(theta)
-
+    cossq = math.cos(theta) * math.cos(theta)
+    
+    dt = (_P*(r*r+a*a)+a*_delta*(b-a*+a*cossq))/(_delta*_rho_sqr)
     dr = p_r * _delta / _rho_sqr
     dtheta = p_theta * 1.0 / _rho_sqr
     dphi = (a * _P / _delta + _b - a + _b * cot * cot) / _rho_sqr
     dp_r = p_r * p_r * (_delta * r / _rho_qua - (r - 1) / _rho_sqr) + p_theta * p_theta * r / _rho_qua + ((2 * r * _P - (r - 1) * ((_b - a) * (_b - a) + _q)) * _delta * _rho_sqr -_R * ((r - 1) * _rho_sqr + _delta * r)) / (_delta * _delta * _rho_qua) - r * _Theta / _rho_qua
     dp_theta = -aasincos * _delta * p_r * p_r / _rho_qua - aasincos * p_theta * p_theta / _rho_qua + (_R * aasincos - _delta * _rho_sqr * (aasincos - _b * _b * (cot + cot * cot * cot))) / (_delta * _rho_qua) + _Theta * aasincos / _rho_qua
     
-    return np.array([dr, dtheta, dphi, dp_r, dp_theta])
+    return np.array([dt, dr, dtheta, dphi, dp_r, dp_theta])
 
 # use this carefully, coordinate system of n0 is not that of pos0
 def ray0_b_from_pos0_n0(pos0, n0, a):
