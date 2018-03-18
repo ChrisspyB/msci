@@ -2,21 +2,21 @@ import numpy as np
 import scipy.integrate as spi
 
 from .deriv_funcs_light import deriv, metric, inv_metric
-
 class Ray:
-    def __init__(self, bh, xyz0, n0, zeta):
+    def __init__(self, bh, xyz0, n0, zeta, eps=None):
         """
         bh -- System's BlackHole object
         xyz0 -- initial ray position [x,y,z]
         n0   -- initial ray direction
         zeta -- times at which to evaluate ray coords
+        eps -- Threshold parameter for integrator
         """
         self.__bh = bh
-        self.__integrate(xyz0,n0,zeta) # autocast
+        self.__integrate(xyz0,n0,zeta,eps) # autocast
 
     @property
     def ray(self):
-        #[r,theta,phi,pr,pt]
+        #[t,r,theta,phi,pr,pt]
         return self.__ray
 
     @property
@@ -35,11 +35,15 @@ class Ray:
     def t(self):
         return self.__t
 
-    def __integrate(self, xyz0, n0, zeta):        
+    def __integrate(self, xyz0, n0, zeta,eps):   
+        """
+        Calcualte ray trajectory
+        Args defined in __init__
+        """     
         a = self.__bh.a
 
         rtp0 = self.__bh.xyz_to_rtp(xyz0) 
-        ray0 = np.concatenate((rtp0, np.zeros(2))) # [t,r,theta,phi,pr,pt]
+        ray0 = np.concatenate(([0],rtp0, np.zeros(2))) # [t,r,theta,phi,pr,pt]
 
         mat = self.__bh.deriv_xyz_to_rtp(xyz0, rtp0)
         metric0 = metric(ray0, a)
@@ -53,11 +57,12 @@ class Ray:
         ray0[4:6] = _p_cov[1:3]
         b = _p_cov[3]
 
-        ray = spi.odeint(deriv, ray0, zeta, (a,b))
-        
+        if eps is None: ray = spi.odeint(deriv, ray0, zeta, (a,b))
+        else: ray = spi.odeint(deriv, ray0, zeta, (a,b),rtol=eps) #NOTE: SEE ALSO, atol PARAMETER
+
         self.__x = np.sqrt(ray[:, 1]**2 + a * a) * \
             np.sin(ray[:, 2]) * np.cos(ray[:, 3])
-        self.__y = np.sqrt(ray[:, 0]**2 + a * a) * \
+        self.__y = np.sqrt(ray[:, 1]**2 + a * a) * \
             np.sin(ray[:, 2]) * np.sin(ray[:, 3])
         self.__z = ray[:, 1] * np.cos(ray[:, 2])
         self.__t = ray[:, 0]
@@ -102,7 +107,6 @@ class Ray:
         # [t,r,theta,phi,pr,pt]
         detec = self.__ray[0]
         emit = self.__ray[-1]
-    
         # find redshift
     
         # fully GR
@@ -113,10 +117,11 @@ class Ray:
         # covariant four-momentum at emission
         p_cov_e = np.array([-1, emit[4], emit[5], b])
         p_e = inv_metric_e @ p_cov_e
-    
-        mat_e = bh.deriv_rtp_to_xyz(bh.rtp_to_xyz(emit[1:4], a), emit[1:4], a)
-        mat_e_inv = bh.deriv_xyz_to_rtp(bh.rtp_to_xyz(emit[1:4], a), emit[1:4], a)
-    
+        
+        rtp_e = emit[1:4]
+        xyz_e = bh.rtp_to_xyz(rtp_e)
+        mat_e = bh.deriv_rtp_to_xyz(xyz_e, rtp_e)
+        mat_e_inv = bh.deriv_xyz_to_rtp(xyz_e, rtp_e)
         # find ray direction at emission
         # cartesian dx/dt
         n_e = mat_e @ p_e[1:4]

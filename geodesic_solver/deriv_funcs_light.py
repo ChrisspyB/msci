@@ -36,37 +36,43 @@ def q_0b(b):
 
 
 def rho(y, a):
-    r, theta, phi, p_r, p_theta = y
+    t,r, theta, phi, p_r, p_theta = y
+    
     cost = math.cos(theta)
     return math.sqrt(r * r + a * a * cost * cost)
 
 
 def rho_sqr(y, a):
-    r, theta, phi, p_r, p_theta = y
+    t,r, theta, phi, p_r, p_theta = y
+
     cost = math.cos(theta)
     return r * r + a * a * cost * cost
 
 
 def Sigma(y, a):
-    r, theta, phi, p_r, p_theta = y
+    t,r, theta, phi, p_r, p_theta = y
+
     sint = math.sin(theta)
     rr_plus_aa = r * r + a * a
     return math.sqrt(rr_plus_aa * rr_plus_aa - a * a * sint * sint)
 
 
 def Delta(y, a):
-    r, theta, phi, p_r, p_theta = y
+    t,r, theta, phi, p_r, p_theta = y
+
     return r * r - 2 * r + a * a
 
 
 def omega(y, a):
-    r, theta, phi, p_r, p_theta = y
+    t,r, theta, phi, p_r, p_theta = y
+
     sig = Sigma(y, a)
     return 2 * a * r / (sig * sig)
 
 
 def pomega(y, a):
-    r, theta, phi, p_r, p_theta = y
+    t,r, theta, phi, p_r, p_theta = y
+
     return Sigma(y, a) * math.sin(theta) / rho(y, a)
 
 
@@ -75,24 +81,26 @@ def alpha(y, a):
 
 
 def E_f(y, n_phi, a):
-    r, theta, phi, p_r, p_theta = y
     return 1 / (alpha(y, a) + omega(y, a) * pomega(y, a) * n_phi)
 
 
 def q(y, a, b):
-    r, theta, phi, p_r, p_theta = y
+    t,r, theta, phi, p_r, p_theta = y
+
     cost = math.cos(theta)
     sint = math.sin(theta)
     return p_theta * p_theta + cost * cost * (b * b / (sint * sint) - a * a)
 
 
 def P(y, a, b):
-    r, theta, phi, p_r, p_theta = y
+    t,r, theta, phi, p_r, p_theta = y
+
     return r * r + a * a - a * b
 
 
 def R(y, a, b):
-    r, theta, phi, p_r, p_theta = y
+    t,r, theta, phi, p_r, p_theta = y
+
     p = P(y, a, b)
     p_minus_a = (b - a)
     return p * p - Delta(y, a) * (p_minus_a * p_minus_a + q(y, a, b))
@@ -100,14 +108,14 @@ def R(y, a, b):
 
 def Theta(y, a, b):
     # TODO: Check if this is ptheta**2 only
-    r, theta, phi, p_r, p_theta = y
+    t,r, theta, phi, p_r, p_theta = y
     cost = math.cos(theta)
     sint = math.sin(theta)
     return q(y, a, b) - cost * cost * (b * b / (sint * sint) - a * a)
 
 
 def deriv(y, zeta, a, b):
-    r, theta, phi, p_r, p_theta = y
+    t,r, theta, phi, p_r, p_theta = y
     _delta = Delta(y, a)
     _rho_sqr = rho_sqr(y, a)
     _rho_qua = _rho_sqr * _rho_sqr
@@ -140,7 +148,7 @@ def ray0_b_from_pos0_n0(pos0, n0, a):
 
 # covariant
 def metric(y, a):
-    r, theta, _, _, _ = y
+    t,r, theta, _, _, _ = y
     
     _rho_sqr = rho_sqr(y, a)
     sinsq = math.sin(theta)*math.sin(theta)
@@ -160,7 +168,7 @@ def metric(y, a):
     
 # contravariant
 def inv_metric(y, a):
-    r, theta, _, _, _ = y
+    t,r, theta, _, _, _ = y
     
     g = metric(y, a)
     
