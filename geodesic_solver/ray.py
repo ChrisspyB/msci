@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.integrate as spi
 
-from .deriv_funcs_light import deriv, metric
+from .deriv_funcs_light import deriv, metric, inv_metric
 
 class Ray:
     def __init__(self, bh, xyz0, n0, zeta):
@@ -62,4 +62,102 @@ class Ray:
         self.__z = ray[:, 1] * np.cos(ray[:, 2])
         self.__t = ray[:, 0]
         self.__ray = ray
+        self.__zeta = zeta
+        self.__b = b
         return
+    
+    def min_dist(self, obs_target_xyz):
+        """
+        Returns minimum distance from ray to point obs_target_xyz,
+        and affine parameter of the closest point on the ray
+        """
+        bh_xyz = self.__bh.bh_from_obs(obs_target_xyz)
+    
+        ray_xyz = self.__bh.rtp_to_xyz(self.__ray[:, 1:4])
+    
+        dist_sqr_min = 1e50 # further than possible start
+        i_min = len(self.__ray) + 1
+        for i in range(len(self.__ray)):
+            disp = ray_xyz[i] - bh_xyz
+            dist_sqr = disp @ disp
+            if dist_sqr < dist_sqr_min:
+                dist_sqr_min = dist_sqr
+                i_min = i
+    
+        return dist_sqr_min, self.__zeta[i_min]
+    
+    def freqshift(self, bh_emit_vel):
+        """
+        Returns frequency ratio between end points of ray (end/start),
+        and also pure doppler and gravitational shifts
+        (which are actually not fully seperable, and so are approximations)
+        
+        bh_emit_vel -- 3-velocity of ray source
+        """
+        bh = self.__bh
+        a = bh.a
+        b = self.__b
+        
+        # end points of ray
+        # [t,r,theta,phi,pr,pt]
+        detec = self.__ray[0]
+        emit = self.__ray[-1]
+    
+        # find redshift
+    
+        # fully GR
+    
+        # metric at emission
+        metric_e = metric(emit, a)
+        inv_metric_e = inv_metric(emit, a)
+        # covariant four-momentum at emission
+        p_cov_e = np.array([-1, emit[4], emit[5], b])
+        p_e = inv_metric_e @ p_cov_e
+    
+        mat_e = bh.deriv_rtp_to_xyz(bh.rtp_to_xyz(emit[1:4], a), emit[1:4], a)
+        mat_e_inv = bh.deriv_xyz_to_rtp(bh.rtp_to_xyz(emit[1:4], a), emit[1:4], a)
+    
+        # find ray direction at emission
+        # cartesian dx/dt
+        n_e = mat_e @ p_e[1:4]
+        # (should be normalised anyway)do
+        n_e = n_e / np.linalg.norm(n_e)
+    
+        # observer dx/dt
+        # project star velocity onto ray direction
+        # observer moves with star
+        u_dt_xyz = np.concatenate(([1], (bh_emit_vel @ n_e) * n_e))
+    
+        u_dt = np.ones(4)
+        u_dt[1:4] = mat_e_inv @ u_dt_xyz[1:4]
+        # to change dx/dt to 4-velocity
+        dt_dtau1 = 1/np.sqrt(-(metric_e @ u_dt) @ u_dt)
+        u = dt_dtau1 * u_dt
+    
+        # energy at emission
+        E1 = - p_cov_e @ u
+    
+        # same for observer
+        metric_detec = metric(detec, a)
+        # trivial when four-velocity of observer is time-only
+        E2 = 1/np.sqrt(-metric_detec[0,0])
+    
+        freqshift_full = E2/E1
+    
+        # grav plus SR doppler
+        # (for verification - should be very close if not the same)
+        _grav = np.sqrt(-metric_e[0,0])/np.sqrt(-metric_detec[0,0])
+        beta = bh_emit_vel @ n_e # radial veloctiy
+        _doppler = np.sqrt((1 + beta)/(1 - beta))
+    
+        return freqshift_full, _doppler, _grav
+    
+    @staticmethod
+    def find_closest_ray(obs_xyz0, obs_target_xyz, eps):
+        """
+        Minimises the distance between rays casted from
+        obs_xyz0 to obs_target_xyz, returning the closest ray.
+        
+        eps -- tolerance for minimisation
+        """
+        
