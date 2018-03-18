@@ -1,18 +1,19 @@
 import numpy as np
 import scipy.integrate as spi
+import scipy.optimize as spo
 
 from .deriv_funcs_light import deriv, metric, inv_metric
 class Ray:
-    def __init__(self, bh, xyz0, n0, zeta, eps=None):
+    def __init__(self, bh, obs_xyz0, obs_n0, zeta, eps=1.49012e-8):
         """
         bh -- System's BlackHole object
-        xyz0 -- initial ray position [x,y,z]
-        n0   -- initial ray direction
+        xyz0 -- initial ray position [x,y,z] in obs coords
+        n0   -- initial ray direction in obs coords
         zeta -- times at which to evaluate ray coords
         eps -- Threshold parameter for integrator
         """
         self.__bh = bh
-        self.__integrate(xyz0,n0,zeta,eps) # autocast
+        self.__integrate(obs_xyz0, obs_n0, zeta, eps) # autocast
 
     @property
     def ray(self):
@@ -35,21 +36,24 @@ class Ray:
     def t(self):
         return self.__t
 
-    def __integrate(self, xyz0, n0, zeta,eps):   
+    def __integrate(self, xyz0, n0, zeta, eps):   
         """
         Calcualte ray trajectory
         Args defined in __init__
         """     
         a = self.__bh.a
+        
+        bh_xyz0 = self.__bh.bh_from_obs(xyz0)
 
-        rtp0 = self.__bh.xyz_to_rtp(xyz0) 
-        ray0 = np.concatenate(([0],rtp0, np.zeros(2))) # [t,r,theta,phi,pr,pt]
+        rtp0 = self.__bh.xyz_to_rtp(bh_xyz0)
+
+        ray0 = np.concatenate(([0], rtp0, np.zeros(2))) # [t,r,theta,phi,pr,pt]
 
         mat = self.__bh.deriv_xyz_to_rtp(xyz0, rtp0)
         metric0 = metric(ray0, a)
 
         _p = np.zeros(4) # 4 momentum 
-        _p[1:4] = mat @ n0
+        _p[1:4] = mat @ self.__bh.bh_from_obs(n0)
         _p[0] = (-1 - _p[3] * metric0[0, 3])/metric0[0,0] # by defn: E = -p^a u_a
 
         _p_cov = metric0 @ _p
@@ -57,26 +61,38 @@ class Ray:
         ray0[4:6] = _p_cov[1:3]
         b = _p_cov[3]
 
-        if eps is None: ray = spi.odeint(deriv, ray0, zeta, (a,b))
-        else: ray = spi.odeint(deriv, ray0, zeta, (a,b),rtol=eps) #NOTE: SEE ALSO, atol PARAMETER
+        ray = spi.odeint(deriv, ray0, zeta, (a,b), rtol=eps, atol=eps)
 
-        self.__x = np.sqrt(ray[:, 1]**2 + a * a) * \
-            np.sin(ray[:, 2]) * np.cos(ray[:, 3])
-        self.__y = np.sqrt(ray[:, 1]**2 + a * a) * \
-            np.sin(ray[:, 2]) * np.sin(ray[:, 3])
-        self.__z = ray[:, 1] * np.cos(ray[:, 2])
         self.__t = ray[:, 0]
         self.__ray = ray
         self.__zeta = zeta
         self.__b = b
+        
+        bh_x = np.sqrt(ray[:, 1]**2 + a * a) * \
+            np.sin(ray[:, 2]) * np.cos(ray[:, 3])
+        bh_y = np.sqrt(ray[:, 1]**2 + a * a) * \
+            np.sin(ray[:, 2]) * np.sin(ray[:, 3])
+        bh_z = ray[:, 1] * np.cos(ray[:, 2])
+        
+        self.__x = np.zeros_like(bh_x)
+        self.__y = np.zeros_like(bh_x)
+        self.__z = np.zeros_like(bh_x)
+        
+        for i in range(len(ray)):
+            bh_xyz = np.array([bh_x[i],bh_y[i],bh_z[i]])
+            obs_xyz = self.__bh.obs_from_bh(bh_xyz)
+            self.__x[i] = obs_xyz[0]
+            self.__y[i] = obs_xyz[1]
+            self.__z[i] = obs_xyz[2]
+        
         return
     
-    def min_dist(self, obs_target_xyz):
+    def min_sqr_dist(self, obs_xyz):
         """
-        Returns minimum distance from ray to point obs_target_xyz,
+        Returns minimum distance from ray to point obs_xyz,
         and affine parameter of the closest point on the ray
         """
-        bh_xyz = self.__bh.bh_from_obs(obs_target_xyz)
+        bh_xyz = self.__bh.bh_from_obs(obs_xyz)
     
         ray_xyz = self.__bh.rtp_to_xyz(self.__ray[:, 1:4])
     
@@ -147,22 +163,54 @@ class Ray:
         # trivial when four-velocity of observer is time-only
         E2 = 1/np.sqrt(-metric_detec[0,0])
     
-        freqshift_full = E2/E1
+        freqshift = E2/E1
     
-        # grav plus SR doppler
+        # gravitational and SR doppler
         # (for verification - should be very close if not the same)
         _grav = np.sqrt(-metric_e[0,0])/np.sqrt(-metric_detec[0,0])
         beta = bh_emit_vel @ n_e # radial veloctiy
         _doppler = np.sqrt((1 + beta)/(1 - beta))
     
-        return freqshift_full, _doppler, _grav
+        return freqshift, _doppler, _grav
     
     @staticmethod
-    def find_closest_ray(obs_xyz0, obs_target_xyz, eps):
+    def from_earth(bh, obs_xyz, eps=1e-8, nt=1024):
         """
         Minimises the distance between rays casted from
-        obs_xyz0 to obs_target_xyz, returning the closest ray.
+        Earth (backwards in time along the z axis) and obs_xyz,
+        returning the x, y of the closest ray.
         
         eps -- tolerance for minimisation
+        nt -- number of time steps near target
         """
+        z_inf = -1e7
         
+        def cast(x,y):
+            # initial position
+            xyz0 = np.array([x,y,z_inf])
+            # rays coming to Earth from star
+            n0 = np.array([0, 0, -1])
+            
+            # time taken by ray travelling to star along straight line
+            # in units of 1/2 r_s / c
+            str_dist = np.sqrt((obs_xyz - xyz0) @ (obs_xyz - xyz0))
+        
+            _zeta_0 = np.zeros(1)
+            _zeta_1 = np.linspace(-str_dist+10, -str_dist-10, nt + 1)
+            zeta = np.concatenate((_zeta_0, _zeta_1))
+            
+            r = Ray(bh, xyz0, n0, zeta)
+            
+            d2_min, z_min = r.min_sqr_dist(obs_xyz)
+            
+            return d2_min, z_min
+        
+        # minimise this
+        obj = lambda xy: cast(xy[0], xy[1])[0]
+        
+        res = spo.minimize(obj,
+                           obs_xyz[:2],
+                           method='Nelder-Mead',
+                           options={'xatol':eps})
+        
+        return res.x # x, y

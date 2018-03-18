@@ -10,7 +10,7 @@ nt = 250  # time steps (time points - 1)
 x0 = -10000 # initial distance from bh
 y0_min, y0_max = 7,200 # min/max initial y coord of rays
 a=0.99
-bh = BlackHole(a=a, M=1, R_0=1, v_r=0, incl=0, spin_theta=0, spin_phi=0)
+bh = BlackHole(a=a, M=1, R_0=1, v_r=0, spin_theta=0, spin_phi=0)
 # -- -------- --
 
 deflecs = []

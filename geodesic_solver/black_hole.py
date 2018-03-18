@@ -3,7 +3,7 @@ import numpy as np
 from .constants import YEAR, SGP_SUN, SOL, AU
 
 class BlackHole:
-    def __init__(self, a, M, R_0, v_r, incl, spin_theta, spin_phi):
+    def __init__(self, a, M, R_0, v_r, spin_theta, spin_phi):
         """
         a -- angular momentum per unit mass in c=G=1 units - [0, 1]
         M -- mass (solar masses)
@@ -31,6 +31,10 @@ class BlackHole:
         # BH frame has spin in -z direction
         self.__bh_from_obs = R_spin_theta @ R_spin_phi
         self.__obs_from_bh = self.__bh_from_obs.transpose()
+        # Obs frame has:
+        #     z away from earth
+        #     x north (decl)
+        #     y east (RA)
         
         self.__a = a
         self.__M = M
