@@ -90,7 +90,7 @@ class BlackHole:
         theta = np.arccos(z/r)
         
         return np.array([r,theta,phi])
-    
+    @property
     def doppler(self):
         """Returns doppler shift due to radial velocity."""
         v = self.__v_r

@@ -23,15 +23,15 @@ class Ray:
 
     @property
     def x(self):
-        return self.__x
+        return self.__xyz[:, 0]
 
     @property
     def y(self):
-        return self.__y
+        return self.__xyz[:, 1]
 
     @property
     def z(self):
-        return self.__z
+        return self.__xyz[:, 2]
     
     @property
     def t(self):
@@ -69,23 +69,13 @@ class Ray:
         self.__zeta = zeta
         self.__b = b
         
-        bh_x = np.sqrt(ray[:, 1]**2 + a * a) * \
-            np.sin(ray[:, 2]) * np.cos(ray[:, 3])
-        bh_y = np.sqrt(ray[:, 1]**2 + a * a) * \
-            np.sin(ray[:, 2]) * np.sin(ray[:, 3])
-        bh_z = ray[:, 1] * np.cos(ray[:, 2])
+        bh_xyz = self.__bh.rtp_to_xyz(ray[:, 1:4])
         
-        self.__x = np.zeros_like(bh_x)
-        self.__y = np.zeros_like(bh_x)
-        self.__z = np.zeros_like(bh_x)
+        self.__xyz = np.zeros_like(bh_xyz)
         
         for i in range(len(ray)):
-            bh_xyz = np.array([bh_x[i],bh_y[i],bh_z[i]])
-            obs_xyz = self.__bh.obs_from_bh(bh_xyz)
-            self.__x[i] = obs_xyz[0]
-            self.__y[i] = obs_xyz[1]
-            self.__z[i] = obs_xyz[2]
-    
+           self.__xyz[i] = self.__bh.obs_from_bh(bh_xyz[i])
+
     def min_sqr_dist(self, obs_xyz):
         """
         Returns minimum distance from ray to point obs_xyz,
@@ -106,13 +96,14 @@ class Ray:
     
         return dist_sqr_min, self.__zeta[i_min]
     
-    def freqshift(self, obs_emit_4vel):
+    def freqshift(self, obs_emit_vel):
         """
         Returns frequency ratio between end points of ray (end/start),
         and also pure doppler and gravitational shifts
         (which are actually not fully seperable, and so are approximations)
         
-        obs_emit_4vel -- 4-velocity of ray source in (obs) cartesian coords
+        obs_emit_vel -- 3-velocity w.r.t coordinate time of ray source
+                         in (obs) cartesian coords
         """
         bh = self.__bh
         a = bh.a
@@ -136,25 +127,23 @@ class Ray:
         rtp_e = emit[1:4]
         xyz_e = bh.rtp_to_xyz(rtp_e)
         mat_e = bh.deriv_rtp_to_xyz(xyz_e, rtp_e)
-#        mat_e_inv = bh.deriv_xyz_to_rtp(xyz_e, rtp_e)
+        mat_e_inv = bh.deriv_xyz_to_rtp(xyz_e, rtp_e)
         # find ray direction at emission
         # cartesian dx/dt
         n_e = mat_e @ p_e[1:4]
         # (should be normalised anyway)do
         n_e = n_e / np.linalg.norm(n_e)
     
-        # observer dx/dtau
-        # project star velocity onto ray direction
-        # (observer moves with star)
-        u = self.__bh.bh_from_obs(obs_emit_4vel)
+        bh_emit_vel = self.__bh.bh_from_obs(obs_emit_vel)
+        # project velocity onto ray direction
         
-#        u_dt_xyz = np.concatenate(([1], (bh_emit_vel @ n_e) * n_e))
-#    
-#        u_dt = np.ones(4)
-#        u_dt[1:4] = mat_e_inv @ u_dt_xyz[1:4]
-#        # to change dx/dt to 4-velocity
-#        dt_dtau1 = 1/np.sqrt(-(metric_e @ u_dt) @ u_dt)
-#        u = dt_dtau1 * u_dt
+        u_dt_xyz = np.concatenate(([1], (bh_emit_vel @ n_e) * n_e))
+    
+        u_dt = np.ones(4)
+        u_dt[1:4] = mat_e_inv @ u_dt_xyz[1:4]
+        # to change dx/dt to 4-velocity
+        dt_dtau1 = 1/np.sqrt(-(metric_e @ u_dt) @ u_dt)
+        u = dt_dtau1 * u_dt
     
         # energy at emission
         E1 = - p_cov_e @ u
@@ -169,7 +158,7 @@ class Ray:
         # gravitational and SR doppler
         # (for verification - should be very close if not the same)
         _grav = np.sqrt(-metric_e[0,0])/np.sqrt(-metric_detec[0,0])
-        beta = u @ n_e # radial veloctiy
+        beta = bh_emit_vel @ n_e # radial veloctiy
         _doppler = np.sqrt((1 + beta)/(1 - beta))
     
         return freqshift, _doppler, _grav
@@ -223,6 +212,8 @@ class Ray:
         
         r = Ray(bh, xyz0, n0, zeta)
         
-        fshift, dopp, grav = r.freqshift()
+        fshift, dopp, grav = r.freqshift(obs_emit_vel)
         
-        return res.x, fshift * bh.doppler(), dopp, grav
+        travel_time = abs(r.t[-1])
+        
+        return travel_time, res.x, fshift * bh.doppler, dopp, grav
