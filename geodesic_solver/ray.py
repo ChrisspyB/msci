@@ -225,4 +225,4 @@ class Ray:
         
         fshift, dopp, grav = r.freqshift()
         
-        return res.x, fshift, dopp, grav
+        return res.x, fshift * bh.doppler(), dopp, grav

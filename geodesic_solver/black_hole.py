@@ -68,9 +68,9 @@ class BlackHole:
         """Converts time from years to natural units."""
         return t * YEAR * SOL / self.__half_rs
     
-    def radial_velocity(self):
-        """Radial velocity of black hole (natural units: v/c)."""
-        return self.__v_r
+#    def radial_velocity(self):
+#        """Radial velocity of black hole (natural units: v/c)."""
+#        return self.__v_r
     
     def bh_from_obs(self, vec):
         """Transform a vector from observer frame to BH frame."""
@@ -90,6 +90,11 @@ class BlackHole:
         theta = np.arccos(z/r)
         
         return np.array([r,theta,phi])
+    
+    def doppler(self):
+        """Returns doppler shift due to radial velocity."""
+        v = self.__v_r
+        return np.sqrt((1 - v)/(1 + v))
 
     # vectorized
     def xyz_to_rtp(self, xyzs):
