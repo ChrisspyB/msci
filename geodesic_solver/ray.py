@@ -107,7 +107,7 @@ class Ray:
     
         return dist_sqr_min, self.__zeta[i_min]
     
-    def freqshift(self, bh_emit_vel):
+    def freqshift(self, obs_emit_vel):
         """
         Returns frequency ratio between end points of ray (end/start),
         and also pure doppler and gravitational shifts
@@ -147,6 +147,8 @@ class Ray:
         # observer dx/dt
         # project star velocity onto ray direction
         # observer moves with star
+        bh_emit_vel = self.__bh.bh_from_obs(obs_emit_vel)
+        
         u_dt_xyz = np.concatenate(([1], (bh_emit_vel @ n_e) * n_e))
     
         u_dt = np.ones(4)
@@ -174,7 +176,7 @@ class Ray:
         return freqshift, _doppler, _grav
     
     @staticmethod
-    def from_earth(bh, obs_xyz, eps=1e-8, nt=1024):
+    def earth_obs(bh, obs_xyz, obs_emit_vel, eps=1e-8, nt=1024):
         """
         Minimises the distance between rays casted from
         Earth (backwards in time along the z axis) and obs_xyz,
@@ -212,5 +214,16 @@ class Ray:
                            obs_xyz[:2],
                            method='Nelder-Mead',
                            options={'xatol':eps})
+        x, y = res.x
+        _, z_min = cast(x, y)
         
-        return res.x # x, y
+        # cast once more for freqshift
+        xyz0 = np.array([x,y,z_inf])
+        n0 = np.array([0, 0, -1])
+        zeta = np.array([0, z_min])
+        
+        r = Ray(bh, xyz0, n0, zeta)
+        
+        fshift, dopp, grav = r.freqshift()
+        
+        return x, y, fshift, dopp, grav
