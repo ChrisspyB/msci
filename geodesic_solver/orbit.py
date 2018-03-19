@@ -1,10 +1,11 @@
 import numpy as np
 import scipy.integrate as spi
 
-from .deriv_funcs_massive import deriv, metric, q
+from .deriv_funcs_massive import deriv, metric, inv_metric, q
+from .ray import Ray
 
 class Orbit:
-    def __init__(self, bh, sma, ecc, incl, long_asc, arg_peri, period):
+    def __init__(self, bh, sma, ecc, incl, long_asc, arg_peri, period, zeta):
         """
         bh -- BlackHole object, around which the star orbits
         sma -- semi-major axis (arcseconds)
@@ -13,6 +14,7 @@ class Orbit:
         long_asc -- longitude of ascending node (degrees)
         arg_peri -- argument of periapsis (degrees)
         period -- period (years)
+        zeta -- array of values of elapsed proper time to integrate to
         """
         
         self.__bh = bh
@@ -44,6 +46,11 @@ class Orbit:
         # y axis is east (right ascension)
         self.__obs_from_orb = R_long @ R_incl @ R_arg
         self.__orb_from_obs = self.__obs_from_orb.transpose()
+        self.__integrate(zeta)
+        
+        @property
+        def orbit(self):
+            return self.__orbit
         
         def obs_from_orb(self, vec):
             """Transform a vector from orbit frame to observer frame."""
@@ -53,7 +60,7 @@ class Orbit:
             """Transform a vector from observer frame to orbit frame."""
             return self.__orb_from_obs @ vec
         
-        def integrate(self, zeta, ecc_anom=np.pi):
+        def __integrate(self, zeta, ecc_anom=np.pi):
             """
             Calculate trajectory, returning points (t, r, theta, phi, pr, ptheta)
             for each element of zeta (elapsed proper time).
@@ -109,5 +116,34 @@ class Orbit:
             # Carter's constant
             _q = q(theta0, p_theta0, a, E, b)
             
-            orbit = spi.odeint(deriv, orbit0, zeta, (a,E,b,_q))
-            return orbit
+            self.__orbit = spi.odeint(deriv, orbit0, zeta, (a,E,b,_q))
+            self.__b = b
+            self.__E = E
+            
+        def lensing_freqshift(self, n):
+            """
+            Picks n sub-points from orbit and
+            returns lensing and freqshift information
+            """
+            # [t, r, theta, phi, pr, pth]
+            subs = self.orbit[::len(self.orbit)//n]
+            xyz = self.__bh.rtp_to_xyz(subs[:, 1:4])
+            
+            deflec = np.zeros(len(subs))
+            fshift = np.zeros(len(subs))
+            
+            for i in range(len(subs)):
+                p_cov = np.array([-self.__E, subs[i, 4], subs[i, 5], self.__b])
+                inv_g = inv_metric(subs[i], self.__bh.a)
+                p = inv_g @ p_cov
+                
+                u = np.zeros_like(p)
+                u[0] = p[0]
+                u[1:4] = self.__bh.deriv_rtp_to_xyz(xyz, subs[1:4]) @ p[1:4]
+                
+                l_xy, shft, _, _ = Ray.earth_obs(self.__bh, xyz, u)
+                
+                deflec[i] = np.linalg.norm(l_xy - xyz[:2]) 
+                fshift[i] = shft
+            
+            return deflec, fshift
