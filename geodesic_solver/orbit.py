@@ -148,6 +148,8 @@ class Orbit:
         obs_t = np.zeros(len(subs))
         deflec = np.zeros(len(subs))
         fshift = np.zeros(len(subs))
+        dopp = np.zeros(len(subs))
+        grav = np.zeros(len(subs))
 
         for i in range(len(subs)):
             p_cov = np.array([-self.__E, subs[i, 4], subs[i, 5], self.__b])
@@ -160,16 +162,18 @@ class Orbit:
             # divide by dt/dtau
             u = u / p[0]
 
-            t, l_xy, shft, _, _ = Ray.earth_obs(self.__bh, xyz[i], u)
+            t, l_xy, shft, _dopp, _grav = Ray.earth_obs(self.__bh, xyz[i], u)
 
             deflec[i] = np.linalg.norm(l_xy - xyz[i, :2])
             fshift[i] = shft
+            dopp[i] = _dopp
+            grav[i] = _grav
             obs_t[i] = orb_t[i] + t
             print(i)
 
         obs_t = obs_t - obs_t[0]
 
-        return obs_t, deflec, fshift
+        return obs_t, deflec, fshift, dopp, grav
 
     @property
     def apoapses(self):
