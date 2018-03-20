@@ -7,9 +7,7 @@ def precession_angle(theta, phi):
     bh = BlackHole(a=0.99, M=4.28e6, R_0=8.32, v_r=14.2,
                    spin_theta=theta, spin_phi=phi)
 
-    zeta = np.linspace(0, bh.from_years(18), 100000)
-#    zeta = np.concatenate((np.linspace(0, bh.from_years(0.2), 10000),
-#                           np.linspace(bh.from_years(15), bh.from_years(17), 20000)))
+    zeta = np.linspace(0, bh.from_years(18), 500000)
     
     s2 = Orbit(bh=bh,
                sma=0.1255,
@@ -20,8 +18,10 @@ def precession_angle(theta, phi):
                period=16.0,
                zeta=zeta)
     
-    apo_i = s2.xyz[s2.i_apoapses[0]]
-    apo_f = s2.xyz[s2.i_apoapses[1]]
+    imaxs = s2.i_apoapses
+    
+    apo_i = s2.xyz[0]
+    apo_f = s2.xyz[imaxs[-1]]
     
     # u dot v = ||u|| ||v|| cos(theta)
     
@@ -30,7 +30,7 @@ def precession_angle(theta, phi):
     
     return angle
 
-ntheta = 25
+ntheta = 16
 nphi = ntheta
 
 theta = np.linspace(0, 180, ntheta)

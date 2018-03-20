@@ -10,7 +10,8 @@ PLOT = True
 bh = BlackHole(a=0.99, M=4.28e6, R_0=8.32, v_r=14.2, spin_theta=0, spin_phi=0)
 
 zeta = np.linspace(0, bh.from_years(18), 100000)
-#zeta = np.concatenate(([0], np.linspace(bh.from_years(8.0), bh.from_years(8.6), 100000)))
+#zeta = np.concatenate((np.linspace(0, bh.from_years(0.1), 2),
+#                       np.linspace(bh.from_years(16.3), bh.from_years(16.4), 10000)))
 
 s2 = Orbit(bh=bh,
            sma=0.1255,
