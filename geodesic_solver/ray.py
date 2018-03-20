@@ -3,6 +3,7 @@ import scipy.integrate as spi
 import scipy.optimize as spo
 
 from .deriv_funcs_light import deriv, metric, inv_metric
+#from .utils import minimise
 
 class Ray:
     def __init__(self, bh, obs_xyz0, obs_n0, zeta, eps=1.49012e-8):
@@ -164,7 +165,7 @@ class Ray:
         return freqshift, _doppler, _grav
     
     @staticmethod
-    def earth_obs(bh, obs_xyz, obs_emit_vel, eps=1e-8, nt=1024):
+    def earth_obs(bh, obs_xyz, obs_emit_vel, eps=1e-9, nt=512):
         """
         Minimises the distance between rays casted from
         Earth (backwards in time along the z axis) and obs_xyz,
@@ -173,7 +174,7 @@ class Ray:
         eps -- tolerance for minimisation
         nt -- number of time steps near target
         """
-        z_inf = -1e7
+        z_inf = -1e6
         
         def cast(x,y):
             # initial position
@@ -201,8 +202,11 @@ class Ray:
         res = spo.minimize(obj,
                            obs_xyz[:2],
                            method='Nelder-Mead',
-                           options={'xatol':eps})
+                           options={'fatol':eps, 'xatol':eps})
+        
+#        x, y = minimise(obj, obs_xyz[:2])
         x, y = res.x
+        
         _, z_min = cast(x, y)
         
         # cast once more for freqshift
@@ -216,4 +220,5 @@ class Ray:
         
         travel_time = abs(r.t[-1])
         
+#        return travel_time, np.array([x, y]), fshift * bh.doppler, dopp, grav
         return travel_time, res.x, fshift * bh.doppler, dopp, grav
