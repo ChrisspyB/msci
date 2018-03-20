@@ -9,7 +9,7 @@ class BlackHole:
         M -- mass (solar masses)
         R_0 -- distance to Earth (kPc)
         v_r -- radial velocity (km/s)
-        spin_theta -- polar spin angle (degrees)
+        spin_theta -- polar spin angle (degrees) -- angle made to z axis
         spin_phi -- azimuthal spin angle (degrees)
         """
         
@@ -20,21 +20,20 @@ class BlackHole:
         phi = spin_phi * np.pi/180
         theta = spin_theta * np.pi/180
         
-        # 0 along x axis
         R_spin_phi = np.array([[np.cos(phi), np.sin(phi), 0],
                               [-np.sin(phi), np.cos(phi), 0],
                               [0, 0, 1]])
         
-        # angle made to -z axis (0 pointing towards Earth)
-        R_spin_theta = np.array([[np.cos(theta), 0, -np.sin(theta)],
+        
+        R_spin_theta = np.array([[-np.cos(theta), 0, np.sin(theta)],
                                  [0, 1, 0],
-                                 [np.sin(theta), 0, np.cos(theta)]])
+                                 [-np.sin(theta), 0, -np.cos(theta)]])
         
         # BH frame has spin in -z direction
         self.__bh_from_obs = R_spin_theta @ R_spin_phi
         self.__obs_from_bh = self.__bh_from_obs.transpose()
         # Obs frame has:
-        #     z away from Earth
+        #     z towards Earth
         #     x north (decl)
         #     y east (RA)
         

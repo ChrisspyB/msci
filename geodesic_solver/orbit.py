@@ -34,15 +34,15 @@ class Orbit:
                           [np.sin(_arg_peri), np.cos(_arg_peri), 0],
                           [0, 0, 1]])
         R_incl = np.array([[1, 0, 0],
-                           [0, np.cos(_incl), -np.sin(_incl)],
-                           [0, np.sin(_incl), np.cos(_incl)]])
+                           [0, np.cos(_incl), np.sin(_incl)],
+                           [0, -np.sin(_incl), np.cos(_incl)]])
         R_long = np.array([[np.cos(_long_asc), -np.sin(_long_asc), 0],
                            [np.sin(_long_asc), np.cos(_long_asc), 0],
                            [0, 0, 1]])
 
         # orbital plane (anticlockwise, periapsis at +x) to
         # cartesian coords in observer frame
-        # z axis points away from earth
+        # z axis points towards earth
         # x axis is north (declination)
         # y axis is east (right ascension)
         self.__obs_from_orb = R_long @ R_incl @ R_arg
@@ -87,7 +87,7 @@ class Orbit:
 
         v_orb = 2*np.pi*sma*sma/(np.linalg.norm(x_orb)*period) * \
                 np.array([-np.sin(ecc_anom),
-                          -np.cos(ecc_anom)*np.sqrt(1-ecc*ecc), 0])
+                          np.cos(ecc_anom)*np.sqrt(1-ecc*ecc), 0])
 
         x_bh = self.__bh.bh_from_obs(self.obs_from_orb(x_orb))
         v_bh = self.__bh.bh_from_obs(self.obs_from_orb(v_orb))

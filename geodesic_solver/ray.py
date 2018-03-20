@@ -174,13 +174,13 @@ class Ray:
         eps -- tolerance for minimisation
         nt -- number of time steps near target
         """
-        z_inf = -1e6
+        z_inf = 1e6
         
         def cast(x,y):
             # initial position
             xyz0 = np.array([x,y,z_inf])
             # rays coming to Earth from star
-            n0 = np.array([0, 0, -1])
+            n0 = np.array([0, 0, 1])
             
             # time taken by ray travelling to star along straight line
             # in units of 1/2 r_s / c
