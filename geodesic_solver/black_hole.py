@@ -68,6 +68,14 @@ class BlackHole:
         """Converts time from years to natural units."""
         return t * YEAR * SOL / self.__half_rs
     
+    def to_kms(self, v):
+        """Converts speed from natural units to km/s."""
+        return v * SOL / 1000
+    
+    def from_kms(self, v):
+        """Converts time from km/s to natural units."""
+        return v * 1000 / SOL
+    
 #    def radial_velocity(self):
 #        """Radial velocity of black hole (natural units: v/c)."""
 #        return self.__v_r
