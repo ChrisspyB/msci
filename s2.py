@@ -45,9 +45,9 @@ if PLOT:
     # (west, north)
     # (-R.A., Decl.)
     plt.figure(figsize=(8,8))
-    plt.plot(-bh.to_arcsec(xyz[:, 1]), bh.to_arcsec(xyz[:, 0]),
+    plt.plot(bh.to_arcsec(xyz[:, 1]), bh.to_arcsec(xyz[:, 0]),
              'k', linewidth=0.5)
-    plt.xlabel("-α (\'\')") # - right ascension
+    plt.xlabel("α (\'\')") # - right ascension
     plt.ylabel("δ (\'\')") # declination
     plt.scatter([0],[0], c='k', marker='x')
 

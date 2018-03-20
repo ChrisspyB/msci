@@ -87,7 +87,7 @@ class Orbit:
 
         v_orb = 2*np.pi*sma*sma/(np.linalg.norm(x_orb)*period) * \
                 np.array([-np.sin(ecc_anom),
-                          np.cos(ecc_anom)*np.sqrt(1-ecc*ecc), 0])
+                          -np.cos(ecc_anom)*np.sqrt(1-ecc*ecc), 0])
 
         x_bh = self.__bh.bh_from_obs(self.obs_from_orb(x_orb))
         v_bh = self.__bh.bh_from_obs(self.obs_from_orb(v_orb))
