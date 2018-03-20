@@ -46,16 +46,17 @@ class Ray:
         a = self.__bh.a
         
         bh_xyz0 = self.__bh.bh_from_obs(xyz0)
+        bh_n0 = self.__bh.bh_from_obs(n0)
 
         rtp0 = self.__bh.xyz_to_rtp(bh_xyz0)
 
         ray0 = np.concatenate(([0], rtp0, np.zeros(2))) # [t,r,theta,phi,pr,pt]
 
-        mat = self.__bh.deriv_xyz_to_rtp(xyz0, rtp0)
+        mat = self.__bh.deriv_xyz_to_rtp(bh_xyz0, rtp0)
         metric0 = metric(ray0, a)
 
         _p = np.zeros(4) # 4 momentum 
-        _p[1:4] = mat @ self.__bh.bh_from_obs(n0)
+        _p[1:4] = mat @ bh_n0
         _p[0] = (-1 - _p[3] * metric0[0, 3])/metric0[0,0] # by defn: E = -p^a u_a
 
         _p_cov = metric0 @ _p
@@ -211,7 +212,7 @@ class Ray:
         
         # cast once more for freqshift
         xyz0 = np.array([x,y,z_inf])
-        n0 = np.array([0, 0, -1])
+        n0 = np.array([0, 0, 1])
         zeta = np.array([0, z_min])
         
         r = Ray(bh, xyz0, n0, zeta)

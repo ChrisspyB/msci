@@ -142,7 +142,7 @@ class Orbit:
         """
         # [t, r, theta, phi, pr, pth]
         subs = self.orbit[::len(self.orbit)//n]
-        xyz = self.__bh.rtp_to_xyz(subs[:, 1:4])
+        xyz_bh = self.__bh.rtp_to_xyz(subs[:, 1:4])
         orb_t = subs[:, 0]
 
         obs_t = np.zeros(len(subs))
@@ -157,14 +157,17 @@ class Orbit:
             p = inv_g @ p_cov
 
             # find star 3-vel w.r.t. coordinate time
-            u = np.zeros(3)
-            u = self.__bh.deriv_rtp_to_xyz(xyz[i], subs[i, 1:4]) @ p[1:4]
+            u_bh = np.zeros(3)
+            u_bh = self.__bh.deriv_rtp_to_xyz(xyz_bh[i], subs[i, 1:4]) @ p[1:4]
             # divide by dt/dtau
-            u = u / p[0]
+            u_bh = u_bh / p[0]
+            
+            xyz = self.__bh.obs_from_bh(xyz_bh[i])
+            u = self.__bh.obs_from_bh(u_bh)
 
-            t, l_xy, shft, _dopp, _grav = Ray.earth_obs(self.__bh, xyz[i], u)
+            t, l_xy, shft, _dopp, _grav = Ray.earth_obs(self.__bh, xyz, u)
 
-            deflec[i] = np.linalg.norm(l_xy - xyz[i, :2])
+            deflec[i] = np.linalg.norm(l_xy - xyz[:2])
             fshift[i] = shft
             dopp[i] = _dopp
             grav[i] = _grav
