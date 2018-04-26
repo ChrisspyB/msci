@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+from mpl_toolkits.mplot3d import Axes3D
+
 from geodesic_solver import BlackHole, Orbit
 
 def precession_angle(theta, phi):
@@ -36,6 +38,9 @@ nphi = ntheta
 theta = np.linspace(0, 180, ntheta)
 phi = np.linspace(0, 360, nphi)
 
+#theta = np.linspace(130, 140, ntheta)
+#phi = np.linspace(310, 320, nphi)
+
 angle = np.zeros((ntheta, nphi))
 
 _ang = -1
@@ -55,8 +60,10 @@ for i in range(ntheta):
 plt.close('all')
 
 cs = plt.contourf(phi, theta, angle,
-                  50, cmap='viridis')
+                  64, cmap='viridis')
 plt.colorbar(cs, orientation='vertical')
+plt.xlabel('ϕ / °')
+plt.ylabel('θ / °')
 
 # plot spin for max precession with orbit
 bh = BlackHole(a=0.99, M=4.28e6, R_0=8.32, v_r=14.2,

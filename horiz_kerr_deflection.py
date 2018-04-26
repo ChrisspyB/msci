@@ -28,7 +28,7 @@ for y in ys:
     rays.append(r)
 
     b = np.abs(y)
-    s = -np.sign(y)
+    s = np.sign(y)
     theory.append(4/b \
              + (15*np.pi/4 - 12*s*a) * 1/(b*b) \
              + (128/3 - 10*np.pi*s*a + 4*a*a) * 1/(b*b*b))

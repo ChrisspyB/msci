@@ -10,8 +10,7 @@ PLOT = True
 bh = BlackHole(a=0.99, M=4.28e6, R_0=8.32, v_r=14.2, spin_theta=0, spin_phi=0)
 
 zeta = np.linspace(0, bh.from_years(18), 100000)
-#zeta = np.concatenate((np.linspace(0, bh.from_years(0.1), 2),
-#                       np.linspace(bh.from_years(16.3), bh.from_years(16.4), 10000)))
+#zeta = np.concatenate(([0], np.linspace(bh.from_years(8), bh.from_years(8.4), 100000)))
 
 s2 = Orbit(bh=bh,
            sma=0.1255,
@@ -24,7 +23,7 @@ s2 = Orbit(bh=bh,
 
 t = s2.orbit[:, 0]
 xyz = s2.xyz
-obs_t, deflec, fshift, dopp, grav = s2.earth_obs(8)
+obs_t, deflec, fshift, dopp, grav = s2.earth_obs(512)
 
 if PLOT:
     plt.close('all')
@@ -69,7 +68,8 @@ if PLOT:
     ax1.plot(bh.to_years(obs_t), bh.to_arcsec(deflec*1e6), color='b')
 
     ax2 = ax1.twinx()
-    ax2.set_ylabel("v_r (km/s)", color='r')
+    ax2.set_ylabel("Apparent v_r due to gravitational redshift (km/s)", color='r')
     ax2.tick_params(axis='y', labelcolor='r')
-    radial_vel = (1 - fshift*fshift)/(1 + fshift*fshift)
+    f = grav
+    radial_vel = (1 - f*f)/(1 + f*f)
     ax2.plot(bh.to_years(obs_t), bh.to_kms(radial_vel), color='r')
