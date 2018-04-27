@@ -38,8 +38,8 @@ if PLOT:
     for i in range(n_rays):
         plt.plot(rays[i].x,rays[i].y, 'b')
     plt.title("Ray Trajectories")
-    plt.xlabel("X")
-    plt.ylabel("Y")
+    plt.xlabel("x")
+    plt.ylabel("y")
 
     plt.figure()
     plt.plot(ys, np.abs(deflecs), label="From Traced Rays", linewidth = 1.0)

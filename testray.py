@@ -3,7 +3,7 @@ from geodesic_solver.ray import Ray
 import numpy as np
 import matplotlib.pyplot as plt
 
-b = BlackHole(a=0.995, M=1, R_0=1, v_r=0, incl=0, spin_theta=0, spin_phi=0)
+b = BlackHole(a=0.995, M=1, R_0=1, v_r=0, spin_theta=0, spin_phi=0)
 
 fig = plt.figure()
 plt.scatter([0],[0])

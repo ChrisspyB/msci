@@ -55,11 +55,11 @@ class BlackHole:
         
     def to_arcsec(self, dist):
         """Converts distance from natural units to arcseconds."""
-        return dist * self.__half_rs / (1000 * self.__R_0 * AU)
+        return dist * self.__to_arc
     
     def from_arcsec(self, dist):
         """Converts distance from arcseconds to natural units."""
-        return dist * 1000 * self.__R_0 * AU / self.__half_rs
+        return dist * self.__from_arc
     
     def to_years(self, t):
         """Converts time from natural units to years."""
@@ -74,7 +74,7 @@ class BlackHole:
         return v * SOL / 1000
     
     def from_kms(self, v):
-        """Converts time from km/s to natural units."""
+        """Converts speed from km/s to natural units."""
         return v * 1000 / SOL
     
 #    def radial_velocity(self):

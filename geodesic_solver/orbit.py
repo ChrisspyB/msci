@@ -6,7 +6,7 @@ from .ray import Ray
 from .utils import minima, maxima
 
 class Orbit:
-    def __init__(self, bh, sma, ecc, incl, long_asc, arg_peri, period, zeta):
+    def __init__(self, bh, sma, ecc, incl, long_asc, arg_peri, period, zeta, tol=1.49012e-8):
         """
         bh -- BlackHole object, around which the star orbits
         sma -- semi-major axis (arcseconds)
@@ -47,7 +47,7 @@ class Orbit:
         # y axis is east (right ascension)
         self.__obs_from_orb = R_long @ R_incl @ R_arg
         self.__orb_from_obs = self.__obs_from_orb.transpose()
-        self.__integrate(zeta)
+        self.__integrate(zeta, tol=tol)
 
     @property
     def orbit(self):
@@ -66,7 +66,7 @@ class Orbit:
         """Transform a vector from observer frame to orbit frame."""
         return self.__orb_from_obs @ vec
 
-    def __integrate(self, zeta, ecc_anom=np.pi):
+    def __integrate(self, zeta, ecc_anom=np.pi, tol=1e-10):
         """
         Calculate trajectory, returning points (t, r, theta, phi, pr, ptheta)
         for each element of zeta (elapsed proper time).
@@ -125,7 +125,7 @@ class Orbit:
         # Carter's constant
         _q = q(theta0, p_theta0, a, E, b)
 
-        self.__orbit = spi.odeint(deriv, orbit0, zeta, (a,E,b,_q))
+        self.__orbit = spi.odeint(deriv, orbit0, zeta, (a,E,b,_q), atol=tol, rtol=tol)
         self.__b = b
         self.__E = E
         
