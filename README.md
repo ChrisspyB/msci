@@ -1,13 +1,6 @@
 # MSci Project
 Code for simulating trajectories of massive and massless particles around a Kerr black hole in order to study the orbits of stars around the galactic centre.
 
-# TODO
-- Sgr A* radial velocity doppler shift
-- Check lensing (and others) vs. Grould
-- Stability Tests
-- Precession vs. BH orientation at maximal spin
-- Extremal spin effects on lensing, redshift, (precession)
-
 # Basic Documentation
 
 ## List of files
