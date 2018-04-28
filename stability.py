@@ -7,7 +7,7 @@ from geodesic_solver import BlackHole, Orbit
 
 PLOT = True
 
-bh = BlackHole(a=0.99, M=4.28e6, R_0=8.32, v_r=14.2, spin_theta=0, spin_phi=0)
+bh = BlackHole(a=0.0, M=4.28e6, R_0=8.32, v_r=14.2, spin_theta=0, spin_phi=0)
 
 def orbit(tol):
     zeta = np.linspace(0, bh.from_years(2*16), 32)
