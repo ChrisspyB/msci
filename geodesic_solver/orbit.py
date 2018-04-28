@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.integrate as spi
 
-from .deriv_funcs_massive import deriv, metric, inv_metric, q
+from .deriv_funcs_massive import deriv, metric, inv_metric, q, Delta, rho_sqr
 from .ray import Ray
 from .utils import minima, maxima
 
@@ -180,20 +180,40 @@ class Orbit:
 
     @property
     def apoapses(self):
-        imaxs = maxima(self.__orbit[:,4])
+        a = self.__bh.a
+        y = self.__orbit
+        rdot = np.zeros_like(y[:,4])
+        for i in range(len(rdot)):
+            rdot[i] = y[i,4] * Delta(y[i], a) / rho_sqr(y[i], a)
+        imaxs = maxima(rdot)
         return self.__orbit[imaxs]
 
     @property
     def periapses(self):
-        imins = minima(self.__orbit[:,4])
+        a = self.__bh.a
+        y = self.__orbit
+        rdot = np.zeros_like(y[:,4])
+        for i in range(len(rdot)):
+            rdot[i] = y[i,4] * Delta(y[i], a) / rho_sqr(y[i], a)
+        imins = minima(rdot)
         return self.__orbit[imins]
 
     @property
     def i_apoapses(self):
-        imaxs = maxima(self.__orbit[:,4])
+        a = self.__bh.a
+        y = self.__orbit
+        rdot = np.zeros_like(y[:,4])
+        for i in range(len(rdot)):
+            rdot[i] = y[i,4] * Delta(y[i], a) / rho_sqr(y[i], a)
+        imaxs = maxima(rdot)
         return imaxs
 
     @property
     def i_periapses(self):
-        imins = minima(self.__orbit[:,4])
+        a = self.__bh.a
+        y = self.__orbit
+        rdot = np.zeros_like(y[:,4])
+        for i in range(len(rdot)):
+            rdot[i] = y[i,4] * Delta(y[i], a) / rho_sqr(y[i], a)
+        imins = minima(rdot)
         return imins

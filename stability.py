@@ -43,6 +43,7 @@ if PLOT:
     plt.scatter([0],[0], c='k', marker='x')
     plt.gca().invert_xaxis()
     
+    # shows convergence
     plt.figure(figsize=(8,8))
     plt.loglog(tols, errs)
     plt.xlabel('Tolerance')
