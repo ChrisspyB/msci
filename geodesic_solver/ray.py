@@ -142,7 +142,7 @@ class Ray:
 #        u_dt_xyz = np.concatenate(([1], (bh_emit_vel @ n_e) * n_e))
     
         u_dt = np.ones(4)
-        u_dt[1:4] = mat_e_inv @ bh_emit_vel[1:4]
+        u_dt[1:4] = mat_e_inv @ bh_emit_vel
         # to change dx/dt to 4-velocity
         dt_dtau1 = 1/np.sqrt(-(metric_e @ u_dt) @ u_dt)
         u = dt_dtau1 * u_dt
