@@ -36,7 +36,7 @@ ntheta = 16
 nphi = ntheta
 
 theta = np.linspace(0, 180, ntheta)
-phi = np.linspace(0, 360, nphi)
+phi = np.linspace(-180, 180, nphi)
 
 #theta = np.linspace(130, 140, ntheta)
 #phi = np.linspace(310, 320, nphi)
@@ -57,19 +57,10 @@ for i in range(ntheta):
             _phi = phi[j]
 
 
-plt.close('all')
-
-cs = plt.contourf(phi, theta, angle,
-                  64, cmap='viridis')
-plt.colorbar(cs, orientation='vertical')
-plt.xlabel('ϕ / °')
-plt.ylabel('θ / °')
-
-# plot spin for max precession with orbit
-bh = BlackHole(a=0.99, M=4.28e6, R_0=8.32, v_r=14.2,
-               spin_theta=_theta, spin_phi=_phi)
-
-zeta = np.linspace(0, bh.from_years(18), 500000)
+# for orbit theta,phi and plotting
+bh = BlackHole(a=0.0, M=4.28e6, R_0=8.32, v_r=14.2,
+                   spin_theta=orb_theta, spin_phi=orb_phi)
+zeta = np.linspace(0, bh.from_years(18), 10000) 
 s2 = Orbit(bh=bh,
            sma=0.1255,
            ecc=0.8839,
@@ -78,14 +69,37 @@ s2 = Orbit(bh=bh,
            arg_peri=65.51,
            period=16.0,
            zeta=zeta)
+_n = np.array([0,0,1])
+n = s2.obs_from_orb(_n)
+x,y,z = n
+orb_theta = np.arccos(z)*180/np.pi
+orb_phi = np.arctan2(y,x)*180/np.pi
+
+plt.close('all')
+
+cs = plt.contourf(phi, theta, angle,
+                  64, cmap='viridis')
+plt.colorbar(cs, orientation='vertical')
+plt.xlabel('ϕ / °')
+plt.ylabel('θ / °')
+plt.scatter(orb_phi, orb_theta, marker='o', color='w')
+if orb_phi<0:
+    plt.scatter(180 + orb_phi, 180-orb_theta, marker='x', color='w')
+else:
+    plt.scatter(orb_phi - 180, 180-orb_theta, marker='x', color='w')
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 ax.scatter([0],[0])
-ax.plot(s2.xyz[:, 0], s2.xyz[:, 1], zs=s2.xyz[:, 2])
 
 # spin direction
 _s = np.array([0,0,-10000])
 s = bh.obs_from_bh(_s)
 
+ax.plot(s2.xyz[:,0], s2.xyz[:,1], zs=s2.xyz[:,2])
 ax.plot([0,s[0]], [0,s[1]], zs=[0,s[2]])
+ax.plot([0,10000*n[0]], [0,10000*n[1]], zs=[0,10000*n[2]])
+# scale axes 1:1:1 to check n is normal to orbit
+ax.set_xlim3d(-5000,35000)
+ax.set_ylim3d(-20000,20000)
+ax.set_zlim3d(-5000,35000)

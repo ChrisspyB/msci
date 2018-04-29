@@ -23,8 +23,7 @@ s2 = Orbit(bh=bh,
 
 t = s2.orbit[:, 0]
 xyz = s2.xyz
-obs_t, deflec, fshift, dopp, grav = s2.earth_obs(512)
-
+obs_t, deflec, fshift, dopp, grav = s2.earth_obs(2)
 fshift *= bh.doppler
 
 if PLOT:
