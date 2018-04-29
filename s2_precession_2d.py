@@ -59,7 +59,7 @@ for i in range(ntheta):
 
 # for orbit theta,phi and plotting
 bh = BlackHole(a=0.0, M=4.28e6, R_0=8.32, v_r=14.2,
-                   spin_theta=orb_theta, spin_phi=orb_phi)
+                   spin_theta=0, spin_phi=0)
 zeta = np.linspace(0, bh.from_years(18), 10000) 
 s2 = Orbit(bh=bh,
            sma=0.1255,

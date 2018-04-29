@@ -133,8 +133,9 @@ class Ray:
         # find ray direction at emission
         # cartesian dx/dt
         n_e = mat_e @ p_e[1:4]
-        # (should be normalised anyway)do
-        n_e = n_e / np.linalg.norm(n_e)
+        # (should be normalised anyway)
+        # change to forward time direction and normalise
+        n_e = - n_e / np.linalg.norm(n_e)
     
         bh_emit_vel = self.__bh.bh_from_obs(obs_emit_vel)
         # project velocity onto ray direction
@@ -160,8 +161,7 @@ class Ray:
         # gravitational and SR doppler
         # (for verification - should be very close if not the same)
         _grav = np.sqrt(-metric_e[0,0])/np.sqrt(-metric_detec[0,0])
-        beta = bh_emit_vel @ n_e # radial veloctiy
-        _doppler = np.sqrt((1 + beta)/(1 - beta))
+        _doppler = np.sqrt(1 - bh_emit_vel @ bh_emit_vel)/(1 - bh_emit_vel @ n_e)
     
         return freqshift, _doppler, _grav
     
