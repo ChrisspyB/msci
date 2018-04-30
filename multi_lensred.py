@@ -28,12 +28,22 @@ paramss = read_params('gillessen_orbits.txt')
 
 bh = BlackHole(a=0.0, M=4.28e6, R_0=8.32, v_r=14.2, spin_theta=0, spin_phi=0)
 
+obs = []
+
 for params in paramss:
     name, sma, ecc, incl, long_asc, arg_peri, p_date, period = params
     
-    print(name)
-    print(sma, ecc, p_date, period)
-    if p_date < 2017:
-        print(bh.from_arcsec(sma*(1-ecc))/2, p_date + period)
-    else:
-        print(bh.from_arcsec(sma*(1-ecc))/2, p_date + period)
+    if name in ['S14', 'S38', 'S55']:
+        print(name)
+        print(sma, ecc, p_date, period)
+        if p_date < 2017:
+            print(bh.from_arcsec(sma*(1-ecc))/2, p_date + period)
+        else:
+            print(bh.from_arcsec(sma*(1-ecc))/2, p_date + period)
+            
+        zeta = np.linspace(0, bh.from_years(period*1.1), 10000)
+        orb = Orbit(bh, sma, ecc, incl, long_asc, arg_peri, period, zeta)
+        
+        obs_t, deflec, fshift, dopp, grav = orb.earth_obs(128)
+        
+        obs.append((obs_t, deflec, fshift, dopp, grav))

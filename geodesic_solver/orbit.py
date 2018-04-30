@@ -6,7 +6,7 @@ from .ray import Ray
 from .utils import minima, maxima
 
 class Orbit:
-    def __init__(self, bh, sma, ecc, incl, long_asc, arg_peri, period, zeta, tol=1.49012e-8):
+    def __init__(self, bh, sma, ecc, incl, long_asc, arg_peri, period, zeta, tol=1e-10):
         """
         bh -- BlackHole object, around which the star orbits
         sma -- semi-major axis (arcseconds)
