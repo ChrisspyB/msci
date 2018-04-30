@@ -134,8 +134,8 @@ class Ray:
         # cartesian dx/dt
         n_e = mat_e @ p_e[1:4]
         # (should be normalised anyway)
-        # change to forward time direction and normalise
-        n_e = - n_e / np.linalg.norm(n_e)
+        # normalise
+        n_e = n_e / np.linalg.norm(n_e)
     
         bh_emit_vel = self.__bh.bh_from_obs(obs_emit_vel)
         # project velocity onto ray direction
